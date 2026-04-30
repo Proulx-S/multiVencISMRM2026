@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../FVEdemoSim"
+		},
+		{
+			"path": "../../tools/pcMRAsim"
+		},
+		{
+			"path": "../../tools/util"
+		}
+	],
+	"settings": {}
+}
