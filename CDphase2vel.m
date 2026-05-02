@@ -1,9 +1,12 @@
-function [vMean,phi] = CDphase2vel(CDphase, venc)
+function [vMean,phi] = CDphase2vel(CDphase, venc, lamiCorFlag)
     % CDphase: ∠CD phase of bulk signal complex difference (CD) [rad]
     % venc   : velocity encoding values [cm/s]
     % vMean  : mean velocity [cm/s]
     % phi    : 𝜙 phase of flowing-spin component vector of bulk signal [rad]
     %          a.k.a. corrected phase difference
+    if ~exist('lamiCorFlag','var') || isempty(lamiCorFlag)
+        lamiCorFlag = false;
+    end
 
 
     % Forward model:
@@ -15,7 +18,12 @@ function [vMean,phi] = CDphase2vel(CDphase, venc)
     phi = nan(size(CDphase));
     phi(CDphase>=0) = -pi+2*CDphase(CDphase>=0);
     phi(CDphase<0 ) =  pi+2*CDphase(CDphase< 0);
+    if lamiCorFlag
+        phi = phi * 0.75;
+    end
+    phi = wrapToPi(phi);
     vMean = phi./pi.*venc;
+
 
 
 

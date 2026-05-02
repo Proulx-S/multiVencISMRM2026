@@ -68,6 +68,60 @@ info.toClean = {};
 
 return
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Double check Divya's derivation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+p   = runSim;
+p.pVessel.ID = 10;%sqrt(2);
+p.pVessel.vMean
+p.pSim;
+p.pMri;
+p.pVessel.S.lumen = 999; %0.08;
+p.pVessel.S.surround = 0;
+p.pMri.venc.method = 'FVEmono';
+p.pSim.nSpin = (2^10+1)^2;
+res = runSim(p.pVessel,p.pSim,p.pMri,[],0);
+
+
+% figure('MenuBar','none','ToolBar','none');
+figure
+hT = tiledlayout(1,2,'TileSpacing','compact','Padding','compact'); ax = {};
+
+ax{end+1} = nexttile;
+imagesc(res.vMap); axis image;
+ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
+set(ax{end},'XTick',[],'YTick',[],'Colormap',jet,'CLim',[-max(res.vMap(:)) max(res.vMap(:))]);
+xline(find(res.pSim.gridVoxIdx(round(end/2),:)==0,1,'first'),'k')
+xline(find(res.pSim.gridVoxIdx(round(end/2),:)==0,1,'last'),'k')
+
+ax{end+1} = nexttile;
+imagesc(res.magMap); axis image;
+ylabel(colorbar('Location','eastoutside'), 'MR magn. [a.u.]');
+set(ax{end},'XTick',[],'YTick',[],'Colormap',gray,'CLim',[0 max(res.magMap(:))]);
+
+
+
+venc = res.pMri.venc.vencList;
+M1   = res.pMri.venc.m1List;
+PD = squeeze(angle(res.I ./ exp(1j*angle(res.I(:,:,:,:,venc==inf)))));
+% PD = squeeze(angle(res.I));
+CD = squeeze(res.I - res.I(:,:,:,:,venc==inf));
+[velCD,phi,velPD,~,~,~] = getPlugFlowEstimates(venc,CD,[],[],PD,0);
+
+figure
+plot(M1,PD);
+plot(M1,velPD); ylim([0 max(velPD(:))*1.1]);
+plot(M1,angle(CD));
+plot(M1,phi);
+plot(M1,velCD);
+scatter(PD(:),phi(:)); axis image; grid on;
+scatter(velPD,velCD); axis image; grid on;
+
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Illustrate the effect of inflow on FVE spectrum
