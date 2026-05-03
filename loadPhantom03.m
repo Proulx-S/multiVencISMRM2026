@@ -1,4 +1,4 @@
-function [data, dataVenc, dataRun,PEspacing,FEspacing,I] = loadPhantom03(dataPath)
+function [data, dataVenc, dataRun, dataNoFlow, PEspacing, FEspacing] = loadPhantom03(dataPath)
 %%%%%%%%%%%%%%%%%
 % Load data cropped to include a bit of static agar around the tube
 
@@ -21,18 +21,6 @@ cycleLength = infuse + withdraw + still;
 stillIdx  = cell(size(runList));
 infuseIdx = cell(size(runList));
 
-imgAllFlow   = [];
-imgAllNoFlow = [];
-PDflow       = [];
-PDnoFlow     = [];
-vencAllNoFlow = [];
-vencAllFlow   = [];
-vencPDflow    = [];
-vencPDnoFlow  = [];
-runAllNoFlow = [];
-runAllFlow   = [];
-runPDflow    = [];
-runPDnoFlow  = [];
 for iRun = 1:length(runList)
     load(fullfile(runList(iRun).folder,runList(iRun).name));
     
@@ -60,32 +48,28 @@ for iRun = 1:length(runList)
 
     
     % ECC using no flow data points
-    I{iRun} = mean(data{iRun},[1 2])./exp(1j.*angle(mean(dataNoFlow{iRun},[1 2 11])));
     % data{iRun} = data{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},11))); % voxel-wise ECC (quite noisy)
     % data{iRun} = data{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},[1 2 11]))); % ROI-wise ECC (more realistic for a pseudo-voxel ROI)
-    data{iRun} = data{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},[2 11]))); % row-wise ECC (less noisy, leverages the directional nature of the background phase error)
-    clear dataNoFlow dataNoFlowVenc dataNoFlowRun
-    
-    % % Remove reference phase
-    % data{iRun} = data{iRun}./exp(1j.*angle(mean(data{iRun}(:,:,:,:,:,:,venc==inf,:,:,:,:,:,:,:,:),11)));
+    data{iRun}       = data{iRun}      ./exp(1j.*angle(mean(dataNoFlow{iRun},[2 11]))); % row-wise ECC (less noisy, leverages the directional nature of the background phase error)
+    dataNoFlow{iRun} = dataNoFlow{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},[2 11]))); % row-wise ECC (less noisy, leverages the directional nature of the background phase error)
 end
 
 
 
 % Compile across runs and sort by venc and runs
-data     = cat(11,data{:}    );
-dataVenc = cat(11,dataVenc{:});
-dataRun  = cat(11,dataRun{:} );
-I        = cat(11,I{:}      );
+data       = cat(11,data{:}    );
+dataVenc   = cat(11,dataVenc{:});
+dataRun    = cat(11,dataRun{:} );
+dataNoFlow = cat(11,dataNoFlow{:}    );
 
-data     = data(:,:,:);
-dataVenc = dataVenc(:,:,:);
-dataRun  = dataRun(:,:,:);
-I        = I(:,:,:);
+data       = data(:,:,:);
+dataVenc   = dataVenc(:,:,:);
+dataRun    = dataRun(:,:,:);
+dataNoFlow = dataNoFlow(:,:,:);
 
 % Sort vencs
 [~,b] = sort(dataVenc,'descend');
-data     = data(:,:,b);
-dataVenc = dataVenc(:,:,b);
-dataRun  = dataRun(:,:,b);
-I        = I(:,:,b);
+data       = data(:,:,b);
+dataVenc   = dataVenc(:,:,b);
+dataRun    = dataRun(:,:,b);
+dataNoFlow = dataNoFlow(:,:,b);
