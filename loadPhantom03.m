@@ -1,4 +1,4 @@
-function [data, dataVenc, dataRun, dataNoFlow, PEspacing, FEspacing] = loadPhantom03(dataPath)
+function [data, dataVenc, dataRun, dataMeas, dataNoFlow, dataNoFlowMeas, PEspacing, FEspacing] = loadPhantom03(dataPath)
 %%%%%%%%%%%%%%%%%
 % Load data cropped to include a bit of static agar around the tube
 
@@ -32,8 +32,9 @@ for iRun = 1:length(runList)
     end
     infuseIdx{iRun}(infuseIdx{iRun}>size(img,11)) = [];
     data{iRun}     = img(  :,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    dataVenc{iRun} = repmat(venc,[1 1 1 1 1 1 1            1 1 1 length(infuseIdx{iRun}) 1 1 1 1]);
-    dataRun{iRun}  = repmat(iRun,[1 1 1 1 1 1 size(venc,7) 1 1 1 length(infuseIdx{iRun}) 1 1 1 1]);
+    dataVenc{iRun} = repmat(venc                                                                       ,[1 1 1 1 1 1 1            1 1 1 length(infuseIdx{iRun}) 1 1 1 1]);
+    dataRun{iRun}  = repmat(iRun                                                                       ,[1 1 1 1 1 1 size(venc,7) 1 1 1 length(infuseIdx{iRun}) 1 1 1 1]);
+    dataMeas{iRun} = repmat(permute(1:length(infuseIdx{iRun}),[1 3 4 5 6 7 8 9 10 11 2 12 13 14 15 16]),[1 1 1 1 1 1 size(venc,7) 1 1 1 1                       1 1 1 1]);
 
     % Get time points with no flow
     stillIdx2  = ((  timeOffset(iRun) + 2 + infuse + withdraw  ):cycleLength:(size(img,11)+cycleLength));
@@ -43,8 +44,10 @@ for iRun = 1:length(runList)
     end
     stillIdx{iRun}(stillIdx{iRun}>size(img,11)) = [];
     dataNoFlow{iRun}     = img(  :,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    dataNoFlowVenc{iRun} = repmat(venc,[1 1 1 1 1 1 1            1 1 1 length(stillIdx{iRun}) 1 1 1 1]);
-    dataNoFlowRun{iRun}  = repmat(iRun,[1 1 1 1 1 1 size(venc,7) 1 1 1 length(stillIdx{iRun}) 1 1 1 1]);
+    dataNoFlowVenc{iRun} = repmat(venc                                                                      ,[1 1 1 1 1 1 1            1 1 1 length(stillIdx{iRun}) 1 1 1 1]);
+    dataNoFlowRun{iRun}  = repmat(iRun                                                                      ,[1 1 1 1 1 1 size(venc,7) 1 1 1 length(stillIdx{iRun}) 1 1 1 1]);
+    dataNoFlowMeas{iRun} = repmat(permute(1:length(stillIdx{iRun}),[1 3 4 5 6 7 8 9 10 11 2 12 13 14 15 16]),[1 1 1 1 1 1 size(venc,7) 1 1 1 1                      1 1 1 1]);
+
 
     
     % ECC using no flow data points
@@ -60,16 +63,21 @@ end
 data       = cat(11,data{:}    );
 dataVenc   = cat(11,dataVenc{:});
 dataRun    = cat(11,dataRun{:} );
-dataNoFlow = cat(11,dataNoFlow{:}    );
+dataMeas   = cat(11,dataMeas{:} );
+dataNoFlow     = cat(11,dataNoFlow{:}    );
+dataNoFlowMeas = cat(11,dataNoFlowMeas{:}    );
 
 data       = data(:,:,:);
 dataVenc   = dataVenc(:,:,:);
 dataRun    = dataRun(:,:,:);
-dataNoFlow = dataNoFlow(:,:,:);
+dataNoFlow     = dataNoFlow(:,:,:);
+dataNoFlowMeas = dataNoFlowMeas(:,:,:);
 
 % Sort vencs
 [~,b] = sort(dataVenc,'descend');
 data       = data(:,:,b);
 dataVenc   = dataVenc(:,:,b);
 dataRun    = dataRun(:,:,b);
-dataNoFlow = dataNoFlow(:,:,b);
+dataMeas   = dataMeas(:,:,b);
+dataNoFlow     = dataNoFlow(:,:,b);
+dataNoFlowMeas = dataNoFlowMeas(:,:,b);
