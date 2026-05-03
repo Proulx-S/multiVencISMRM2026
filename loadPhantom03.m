@@ -1,4 +1,4 @@
-function [data, dataVenc,PEspacing,FEspacing] = loadPhantom03(dataPath)
+function [data, dataVenc, dataRun,PEspacing,FEspacing,I] = loadPhantom03(dataPath)
 %%%%%%%%%%%%%%%%%
 % Load data cropped to include a bit of static agar around the tube
 
@@ -35,105 +35,57 @@ runPDflow    = [];
 runPDnoFlow  = [];
 for iRun = 1:length(runList)
     load(fullfile(runList(iRun).folder,runList(iRun).name));
-    img = conj(img); % flip sign of phase
-    if size(venc,11)~=size(img,11) && size(venc,11)==1
-        venc = repmat(venc,[1 1 1 1 1 1 1 1 1 1 size(img,11) 1 1 1 1 1]);
-    end
-    run = ones(size(venc)).*iRun;
-
-    % Remove coil phase
-    if size(img,4)>1
-        img = mean(img .* exp(-1i.*angle(mean(kCoil,11))),4);
-    end
     
-    % Compute PD
-    refInd = squeeze(              venc(:,:,:,:,:,:,     :,:,:,:,1,:,:,:,:,:)==inf);
-    PD     = img .* exp(-1i * angle(img(:,:,:,:,:,:,refInd,:,:,:,1,:,:,:,:,:))    );
-
-    
-    % Compile for signal averaging -- time points with no flow
-    stillIdx2  = ((  timeOffset(iRun) + 2 + infuse + withdraw  ):cycleLength:(size(img,11)+cycleLength));
-    stillIdx{iRun}  = sort([stillIdx2(:)])';
-    if stillIdx{iRun}(1)>cycleLength
-        stillIdx{iRun} = stillIdx{iRun} - cycleLength;
-    end
-    stillIdx{iRun}(stillIdx{iRun}>size(img,11)) = [];
-
+    % Get time points with flow
     infuseIdx2 = ((  timeOffset(iRun) + 2                      ):cycleLength:(size(img,11)+cycleLength));
     infuseIdx{iRun} = sort([infuseIdx2(:)])';
     if infuseIdx{iRun}(1)>cycleLength
         infuseIdx{iRun} = infuseIdx{iRun} - cycleLength;
     end
     infuseIdx{iRun}(infuseIdx{iRun}>size(img,11)) = [];
+    data{iRun}     = img(  :,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
+    dataVenc{iRun} = repmat(venc,[1 1 1 1 1 1 1            1 1 1 length(infuseIdx{iRun}) 1 1 1 1]);
+    dataRun{iRun}  = repmat(iRun,[1 1 1 1 1 1 size(venc,7) 1 1 1 length(infuseIdx{iRun}) 1 1 1 1]);
 
-    tmp = img(:,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    imgAllNoFlow = cat(7,imgAllNoFlow,mean(tmp(:,:,:,:,:,:,:),4));
-    tmp = venc(:,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    vencAllNoFlow      = cat(7,vencAllNoFlow,tmp(:,:,:,:,:,:,:));
-    tmp = run(:,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    runAllNoFlow      = cat(7,runAllNoFlow,tmp(:,:,:,:,:,:,:));
-    tmp = PD(:,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    PDnoFlow = cat(7,PDnoFlow,mean(tmp(:,:,:,:,:,:,:),4));
-    tmp = venc(:,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    vencPDnoFlow = cat(7,vencPDnoFlow,tmp(:,:,:,:,:,:,:));
-    tmp = run(:,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
-    runPDnoFlow = cat(7,runPDnoFlow,tmp(:,:,:,:,:,:,:));
-
-    tmp = img(:,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    imgAllFlow = cat(7,imgAllFlow,mean(tmp(:,:,:,:,:,:,:),4));
-    tmp = venc(:,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    vencAllFlow = cat(7,vencAllFlow,tmp(:,:,:,:,:,:,:));
-    tmp = run(:,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    runAllFlow = cat(7,runAllFlow,tmp(:,:,:,:,:,:,:));
-    tmp = PD(:,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    PDflow = cat(7,PDflow,mean(tmp(:,:,:,:,:,:,:),4));
-    tmp = venc(:,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    vencPDflow = cat(7,vencPDflow,tmp(:,:,:,:,:,:,:));
-    tmp = run(:,:,:,:,:,:,:,:,:,:,infuseIdx{iRun},:,:,:,:,:);
-    runPDflow = cat(7,runPDflow,tmp(:,:,:,:,:,:,:));
-end
-
-% sort vencs
-[a,b] = sort(vencAllNoFlow);
-imgAllNoFlow = imgAllNoFlow(:,:,:,:,:,:,b);
-vencAllNoFlow = vencAllNoFlow(:,:,:,:,:,:,b);
-runAllNoFlow = runAllNoFlow(:,:,:,:,:,:,b);
-
-[a,b] = sort(vencAllFlow);
-imgAllFlow = imgAllFlow(:,:,:,:,:,:,b);
-vencAllFlow = vencAllFlow(:,:,:,:,:,:,b);
-runAllFlow = runAllFlow(:,:,:,:,:,:,b);
-
-[a,b] = sort(vencPDflow);
-PDflow = PDflow(:,:,:,:,:,:,b);
-vencPDflow = vencPDflow(:,:,:,:,:,:,b);
-runPDflow = runPDflow(:,:,:,:,:,:,b);
-
-[a,b] = sort(vencPDnoFlow);
-PDnoFlow = PDnoFlow(:,:,:,:,:,:,b);
-vencPDnoFlow = vencPDnoFlow(:,:,:,:,:,:,b);
-runPDnoFlow = runPDnoFlow(:,:,:,:,:,:,b);
-
-
-
-vencPDflowList   = sort(unique(vencPDflow));
-vencPDnoFlowList = sort(unique(vencPDnoFlow));
-runPDflowList   = sort(unique(runPDflow));
-runPDnoFlowList = sort(unique(runPDnoFlow));
-% average time within each run
-dataFlow_tAv   = nan(size(PDflow  ,1),size(PDflow  ,2),length(vencPDflowList  ),length(runPDflowList));
-dataNoFlow_tAv = nan(size(PDnoFlow,1),size(PDnoFlow,2),length(vencPDnoFlowList),length(runPDnoFlowList));
-for iRun = 1:length(runPDflowList)
-    for iVenc = 1:length(vencPDflowList)
-        if nnz(vencPDflow==vencPDflowList(iVenc)   &   runPDflow==runPDflowList(iRun))
-            dataFlow_tAv(:,:,iVenc,iRun)   = mean(PDflow  (:,:,:,:,:,:,  vencPDflow==vencPDflowList(iVenc)   &   runPDflow==runPDflowList(iRun)  ),7);
-            dataNoFlow_tAv(:,:,iVenc,iRun) = mean(PDnoFlow(:,:,:,:,:,:,vencPDnoFlow==vencPDnoFlowList(iVenc) & runPDnoFlow==runPDnoFlowList(iRun)),7);
-        end
+    % Get time points with no flow
+    stillIdx2  = ((  timeOffset(iRun) + 2 + infuse + withdraw  ):cycleLength:(size(img,11)+cycleLength));
+    stillIdx{iRun}  = sort([stillIdx2(:)])';
+    if stillIdx{iRun}(1)>cycleLength
+        stillIdx{iRun} = stillIdx{iRun} - cycleLength;
     end
-end
-% correct eddy current effects
-dataFlow_tAv = dataFlow_tAv .* exp(-1i*angle(dataNoFlow_tAv));
-% average over runs
-data = mean(permute(dataFlow_tAv,[3 1 2 4]),4,"omitnan"); % [venc x FE x PE], use nanmean to ignore NaNs
-dataVenc = vencPDnoFlowList;
+    stillIdx{iRun}(stillIdx{iRun}>size(img,11)) = [];
+    dataNoFlow{iRun}     = img(  :,:,:,:,:,:,:,:,:,:,stillIdx{iRun},:,:,:,:,:);
+    dataNoFlowVenc{iRun} = repmat(venc,[1 1 1 1 1 1 1            1 1 1 length(stillIdx{iRun}) 1 1 1 1]);
+    dataNoFlowRun{iRun}  = repmat(iRun,[1 1 1 1 1 1 size(venc,7) 1 1 1 length(stillIdx{iRun}) 1 1 1 1]);
+
     
+    % ECC using no flow data points
+    I{iRun} = mean(data{iRun},[1 2])./exp(1j.*angle(mean(dataNoFlow{iRun},[1 2 11])));
+    % data{iRun} = data{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},11))); % voxel-wise ECC (quite noisy)
+    % data{iRun} = data{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},[1 2 11]))); % ROI-wise ECC (more realistic for a pseudo-voxel ROI)
+    data{iRun} = data{iRun}./exp(1j.*angle(mean(dataNoFlow{iRun},[2 11]))); % row-wise ECC (less noisy, leverages the directional nature of the background phase error)
+    clear dataNoFlow dataNoFlowVenc dataNoFlowRun
+    
+    % % Remove reference phase
+    % data{iRun} = data{iRun}./exp(1j.*angle(mean(data{iRun}(:,:,:,:,:,:,venc==inf,:,:,:,:,:,:,:,:),11)));
+end
+
+
+
+% Compile across runs and sort by venc and runs
+data     = cat(11,data{:}    );
+dataVenc = cat(11,dataVenc{:});
+dataRun  = cat(11,dataRun{:} );
+I        = cat(11,I{:}      );
+
+data     = data(:,:,:);
+dataVenc = dataVenc(:,:,:);
+dataRun  = dataRun(:,:,:);
+I        = I(:,:,:);
+
+% Sort vencs
+[~,b] = sort(dataVenc,'descend');
+data     = data(:,:,b);
+dataVenc = dataVenc(:,:,b);
+dataRun  = dataRun(:,:,b);
+I        = I(:,:,b);

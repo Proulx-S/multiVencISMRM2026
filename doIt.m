@@ -66,63 +66,10 @@ info.project.dataBasePhantom = projectDataBasePhantom; clear projectDataBasePhan
 info.toClean = {};
 
 
-return
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Double check Divya's derivation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-p   = runSim;
-p.pVessel.ID = 10;%sqrt(2);
-p.pVessel.vMean
-p.pSim;
-p.pMri;
-p.pVessel.S.lumen = 999; %0.08;
-p.pVessel.S.surround = 0;
-p.pMri.venc.method = 'FVEmono';
-p.pSim.nSpin = (2^10+1)^2;
-res = runSim(p.pVessel,p.pSim,p.pMri,[],0);
-
-
-% figure('MenuBar','none','ToolBar','none');
-figure
-hT = tiledlayout(1,2,'TileSpacing','compact','Padding','compact'); ax = {};
-
-ax{end+1} = nexttile;
-imagesc(res.vMap); axis image;
-ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
-set(ax{end},'XTick',[],'YTick',[],'Colormap',jet,'CLim',[-max(res.vMap(:)) max(res.vMap(:))]);
-xline(find(res.pSim.gridVoxIdx(round(end/2),:)==0,1,'first'),'k')
-xline(find(res.pSim.gridVoxIdx(round(end/2),:)==0,1,'last'),'k')
-
-ax{end+1} = nexttile;
-imagesc(res.magMap); axis image;
-ylabel(colorbar('Location','eastoutside'), 'MR magn. [a.u.]');
-set(ax{end},'XTick',[],'YTick',[],'Colormap',gray,'CLim',[0 max(res.magMap(:))]);
 
 
 
-venc = res.pMri.venc.vencList;
-M1   = res.pMri.venc.m1List;
-PD = squeeze(angle(res.I ./ exp(1j*angle(res.I(:,:,:,:,venc==inf)))));
-% PD = squeeze(angle(res.I));
-CD = squeeze(res.I - res.I(:,:,:,:,venc==inf));
-[velCD,phi,velPD,~,~,~] = getPlugFlowEstimates(venc,CD,[],[],PD,0);
-
-figure
-plot(M1,PD);
-plot(M1,velPD); ylim([0 max(velPD(:))*1.1]);
-plot(M1,angle(CD));
-plot(M1,phi);
-plot(M1,velCD);
-scatter(PD(:),phi(:)); axis image; grid on;
-scatter(velPD,velCD); axis image; grid on;
-
-
-
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
+if 0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Illustrate the effect of inflow on FVE spectrum
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -174,7 +121,7 @@ end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fVelSpec; % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
 fVelSpecInflow; % Here the weighting effect was maximized using a 90 flip angle for a linear magnitude function of velocity
-
+end
 
 
 %%%%%%%%%%%%%%%%%%%%
@@ -182,62 +129,62 @@ fVelSpecInflow; % Here the weighting effect was maximized using a 90 flip angle 
 %%%%%%%%%%%%%%%%%%%%
 phantom03dataFile = fullfile(info.project.scratch, 'phantom03.mat');
 if ~exist(phantom03dataFile,'file')
-    [data, dataVenc,PEspacing,FEspacing] = loadPhantom03(fullfile(info.project.dataBasePhantom,'20251010_multiVENCphantom03'));
-    save(phantom03dataFile, 'data', 'dataVenc', 'PEspacing', 'FEspacing');
+    [data, dataVenc, dataRun, PEspacing,FEspacing, I] = loadPhantom03(fullfile(info.project.dataBasePhantom,'20251010_multiVENCphantom03'));
+    save(phantom03dataFile, 'data', 'dataVenc', 'dataRun', 'PEspacing', 'FEspacing', 'I');
 else
-    load(phantom03dataFile, 'data', 'dataVenc', 'PEspacing', 'FEspacing');
+    load(phantom03dataFile, 'data', 'dataVenc', 'dataRun', 'PEspacing', 'FEspacing', 'I');
 end
-data = data ./ exp(1j*angle(data(dataVenc==inf,:,:)));
 %% %%%%%%%%%%%%%%%%%
 
 
+return
 
 
-p = runSim;
-tmp = runSim(p.pVessel,p.pSim,p.pMri);
-p.pVessel.vMean = tmp.pMri.vCrit/2*1.5;
-p.pMri.FA = 90;
-p.pMri.venc.method = 'FVEmono';
-p.pMri.venc.FVEbw = p.pVessel.vMean*4;
-p.pMri.venc.FVEres = p.pMri.venc.FVEbw./200;
-p.pSim.nSpin = (2^10+1)^2;
-res      = runSim(p.pVessel,p.pSim,p.pMri,[],0);
-% p.pMri.sliceThickness = inf;
-Mz  = getMz_ss(p.pMri,p.pMri.relax.blood,p.pVessel.vMean);
-Mxy = getMxy_ss(Mz,p.pMri,p.pMri.relax.blood);
-p.pVessel.S.lumen = Mxy;
-resSatin = runSim(p.pVessel,p.pSim,p.pMri);
-
-
-
-figure('MenuBar','none','ToolBar','none');
-imagesc(tmp1>0.95e-7,[0 max(tmp1(:))]); axis image;
-scatter(PD(tmp1>0.95e-7),phi(tmp1>0.95e-7)); axis image; grid on;
-xlabel('PD'); ylabel('phi');
-lim = [xlim ylim]; lim = [min(lim) max(lim)];
-hold on
-line(lim,lim)
-
-figure('MenuBar','none','ToolBar','none');
-scatter(PD(tmp1>0.95e-7),tmp1(tmp1>0.95e-7)); grid on;
-scatter(PD(:),tmp1(:)); grid on;
-xlabel('PD'); ylabel('mag');
-lim = [xlim ylim]; lim = [min(lim) max(lim)];
-hold on
-line(lim,lim)
+% p = runSim;
+% tmp = runSim(p.pVessel,p.pSim,p.pMri);
+% p.pVessel.vMean = tmp.pMri.vCrit/2*1.5;
+% p.pMri.FA = 90;
+% p.pMri.venc.method = 'FVEmono';
+% p.pMri.venc.FVEbw = p.pVessel.vMean*4;
+% p.pMri.venc.FVEres = p.pMri.venc.FVEbw./200;
+% p.pSim.nSpin = (2^10+1)^2;
+% res      = runSim(p.pVessel,p.pSim,p.pMri,[],0);
+% % p.pMri.sliceThickness = inf;
+% Mz  = getMz_ss(p.pMri,p.pMri.relax.blood,p.pVessel.vMean);
+% Mxy = getMxy_ss(Mz,p.pMri,p.pMri.relax.blood);
+% p.pVessel.S.lumen = Mxy;
+% resSatin = runSim(p.pVessel,p.pSim,p.pMri);
 
 
 
+% figure('MenuBar','none','ToolBar','none');
+% imagesc(tmp1>0.95e-7,[0 max(tmp1(:))]); axis image;
+% scatter(PD(tmp1>0.95e-7),phi(tmp1>0.95e-7)); axis image; grid on;
+% xlabel('PD'); ylabel('phi');
+% lim = [xlim ylim]; lim = [min(lim) max(lim)];
+% hold on
+% line(lim,lim)
 
-% Fig1A
-f = figure('MenuBar','none','ToolBar','none','Units','Centimeter','Position',[7     9    24    10]);
-hT = tiledlayout(f,2,4,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+% figure('MenuBar','none','ToolBar','none');
+% scatter(PD(tmp1>0.95e-7),tmp1(tmp1>0.95e-7)); grid on;
+% scatter(PD(:),tmp1(:)); grid on;
+% xlabel('PD'); ylabel('mag');
+% lim = [xlim ylim]; lim = [min(lim) max(lim)];
+% hold on
+% line(lim,lim)
+
+
+
+
+%%%%%%%% 
+f = figure('MenuBar','none','ToolBar','none','Units','Centimeter','Position',[9     9    24    10]);
+hT = tiledlayout(f,3,4,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
 
 % phantom data
 ax{end+1} = nexttile;
 dataVencIdx = dataVenc==inf;
-tmp1 = squeeze(abs(data(dataVencIdx,:,:)));
-imagesc(tmp1,[0 max(tmp1(:))]); axis image;
+M = squeeze(abs(mean(data(:,:,dataVencIdx),3)));
+hIm = imagesc(M,[0 max(M(:))]); axis image;
 ylabel(colorbar('Location','westoutside'), 'MR magn. [a.u.]');
 ax{end}.Colormap = gray;
 set(ax{end},'DataAspectRatio',[FEspacing/PEspacing 1 1],'XTick',[],'YTick',[]);
@@ -246,14 +193,32 @@ title(ax{end},'phantom ROI');
 ax{end+1} = nexttile;
 dataVencIdx    = find(dataVenc==11);
 dataVencRefIdx = find(dataVenc==inf);
-venc = dataVenc(dataVencIdx);
-PD   = angle(data(dataVencIdx,:,:));
-CD   = data(dataVencIdx,:,:)-data(dataVencRefIdx,:,:);
+venc = dataVenc(dataVencIdx); venc = unique(venc);
+PD   = angle(mean(data(:,:,dataVencIdx),3));
+CD   = mean(data(:,:,dataVencIdx),3)-mean(data(:,:,dataVencRefIdx),3);
 [velCD,phi,velPD,~,~,~] = getPlugFlowEstimates(venc,CD,[],[],PD);
-imagesc(squeeze(velPD),[-max(velPD(:)) max(velPD(:))]); axis image;
+hIm = imagesc(-velPD,[-max(abs(velPD(:))) max(abs(velPD(:)))]); axis image;
 ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
 ax{end}.Colormap = jet;
 set(ax{end},'DataAspectRatio',[FEspacing/PEspacing 1 1],'XTick',[],'YTick',[]);
+
+ax{end+1} = nexttile;
+wallMask = single(M>0.446e-7);
+imagesc(wallMask,[0 1]);
+ax{end}.Colormap = gray;
+set(ax{end},'DataAspectRatio',[FEspacing/PEspacing 1 1],'XTick',[],'YTick',[],'Color','none');
+
+
+ax{end+1} = nexttile([3 3]);
+
+I     = squeeze(mean(data,[1 2]));
+Ivenc = squeeze(dataVenc);
+Irun  = squeeze(dataRun);
+plotMultiVenc(ax{end},I,Ivenc,Irun);
+
+
+
+
 
 
 
