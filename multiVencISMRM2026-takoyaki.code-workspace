@@ -9,19 +9,23 @@
 			"path": "../../data"
 		},
 		{
-			"name": "project/multiVencISMRM2026",
+			"name": "sim",
+			"path": "../../sim"
+		},
+		{
+			"name": "projects/multiVencISMRM2026",
 			"path": "."
 		},
 		{
-			"name": "project/multiVencInVivo",
+			"name": "projects/multiVencInVivo",
 			"path": "../multiVencInVivo"
 		},
 		{
-			"name": "project/microscopyValidation",
+			"name": "projects/microscopyValidation",
 			"path": "../microscopyValidation"
 		},
 		{
-			"name": "project/multiVenc",
+			"name": "projects/multiVenc",
 			"path": "../multiVenc"
 		},
 		{

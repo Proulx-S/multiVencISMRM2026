@@ -37,6 +37,10 @@
 			"path": "../../data"
 		},
 		{
+			"name": "sim",
+			"path": "../../sim"
+		},
+		{
 			"name": "bass",
 			"path": "../.."
 		},
