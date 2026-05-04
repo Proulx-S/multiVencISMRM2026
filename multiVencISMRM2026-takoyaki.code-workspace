@@ -1,24 +1,28 @@
 {
 	"folders": [
 		{
-			"name": "multiVencISMRM2026",
+			"name": "bass",
+			"path": "../.."
+		},
+		{
+			"name": "data",
+			"path": "../../data"
+		},
+		{
+			"name": "project/multiVencISMRM2026",
 			"path": "."
 		},
 		{
-			"name": "multiVencInVivo",
+			"name": "project/multiVencInVivo",
 			"path": "../multiVencInVivo"
 		},
 		{
-			"name": "microscopyValidation",
+			"name": "project/microscopyValidation",
 			"path": "../microscopyValidation"
 		},
 		{
-			"name": "multiVenc",
+			"name": "project/multiVenc",
 			"path": "../multiVenc"
-		},
-		{
-			"name": "multiVENC_sub01",
-			"path": "../multiVENC_sub01"
 		},
 		{
 			"name": "tools/multiVencSim",
@@ -31,14 +35,6 @@
 		{
 			"name": "tools/util",
 			"path": "../../tools/util"
-		},
-		{
-			"name": "data",
-			"path": "../../data"
-		},
-		{
-			"name": "bass",
-			"path": "../.."
 		},
 		{
 			"name": "db/multiVENC_sub01",
