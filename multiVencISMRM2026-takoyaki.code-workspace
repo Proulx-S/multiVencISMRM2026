@@ -61,5 +61,7 @@
 			"path": "/local/users/Proulx-S/dbPhantom/20250929_multiVENCphantom01"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"git.autoRepositoryDetection": "subFolders"
+	}
 }
