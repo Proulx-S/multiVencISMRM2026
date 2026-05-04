@@ -74,8 +74,8 @@ info.toClean = {};
 
 
 
-if 0
-saveThis = 0;
+if 1
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot simulation summary -- velocity map, mag map and and complex-domain signal evolution, for plug flow and laminar flow (both with flat magnitude profile) -- ISMRM2026-poster.pptx slide 7
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -138,8 +138,10 @@ for rowIdx = 1:2
     ylabel(colorbar,'velocity (cm/s)','FontSize',8);
     title(axSim7{end},{flowNamesSim7{rowIdx},'velocity map'});
     axSim7{end+1} = nexttile(hTSim7);
-    runArr = ones(length(IplotSim7{rowIdx}),1);
-    plotMultiVenc(axSim7{end}, IplotSim7{rowIdx}, vPlotSim7{rowIdx}, runArr, 'tight', 'jet');
+    I_s7    = IplotSim7{rowIdx};
+    v_s7    = vPlotSim7{rowIdx};
+    Mnorm_s7 = abs(mean(I_s7(v_s7==inf)));
+    plotComplexDomain(axSim7{end}, I_s7/Mnorm_s7, 'tight', 'line');
     title(axSim7{end},{flowNamesSim7{rowIdx},'complex-domain signal'});
 end
 if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
@@ -154,7 +156,7 @@ end
 
 
 
-forceThis = 1;
+forceThis = 0;
 %%%%%%%%%%%%%%%%%%%%
 %% Load phantom data
 %%%%%%%%%%%%%%%%%%%%
@@ -567,8 +569,8 @@ end
 end
 
 
-if 1
-saveThis = 1;
+if 0
+saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot phantom details -- radial profiles -- ISMRM2026-poster.pptx slide 9
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -732,10 +734,12 @@ title(ax{end},'low-mag wall mask');
 
 % Plot complex domain signal
 ax{end+1} = nexttile([3 3]);
-I     = squeeze(mean(data,[1 2]));
-Ivenc = squeeze(dataVenc);
-Irun  = squeeze(dataRun);
-plotMultiVenc(ax{end},I,Ivenc,Irun,[],'hot');
+I_ph    = squeeze(mean(data,[1 2]));
+Ivenc_ph = squeeze(dataVenc);
+Mnorm_ph = abs(mean(I_ph(Ivenc_ph==inf)));
+vencList_ph = sort(unique(Ivenc_ph),'descend');
+I_ph_mean = arrayfun(@(v) mean(I_ph(Ivenc_ph==v)), vencList_ph) / Mnorm_ph;
+plotComplexDomain(ax{end}, I_ph_mean, 'full', 'markers');
 
 % Save
 if saveThis || ~exist(fullfile(info.project.figures,'phantomSummary.fig'))
@@ -746,8 +750,7 @@ end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
-return
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot matched simulation summary -- same format as phantom summary but all from simulation
@@ -852,28 +855,10 @@ axSim{end}.Colormap = gray; set(axSim{end},'XTick',[],'YTick',[]);
 hold(axSim{end},'on'); plot(axSim{end}, (ID/2+2.38125)*cos(theta_sim), (ID/2+2.38125)*sin(theta_sim), 'm');
 title(axSim{end},'surround mask');
 
-% Complex-plane spiral: smooth colored line (surface trick for per-segment coloring)
+% Complex-plane spiral
 axSim{end+1} = nexttile(hTSim, [3 3]);
-xSp  = real(Ienc_norm_sim);
-ySp  = imag(Ienc_norm_sim);
-cVal = (1:nSteps_sim)' / nSteps_sim;
-surface(axSim{end}, [xSp xSp], [ySp ySp], zeros(nSteps_sim,2), [cVal cVal], ...
-    'EdgeColor','flat','FaceColor','none','LineWidth',1.5);
-colormap(axSim{end}, jet);
-cb_sim = colorbar(axSim{end},'Location','eastoutside');
-ylabel(cb_sim,'normalized M_1  (0=low → 1=high)');
-hold(axSim{end},'on');
-plot(axSim{end}, cos(theta_sim), sin(theta_sim), 'w--', 'LineWidth', 0.8);
-xline(axSim{end},0,'w','LineWidth',0.5,'Alpha',0.4);
-yline(axSim{end},0,'w','LineWidth',0.5,'Alpha',0.4);
-axis(axSim{end},'image','tight');
-xL = xlim(axSim{end}); if xL(1)>0; xL(1)=0; end; if xL(2)<0; xL(2)=0; end;
-yL = ylim(axSim{end}); if yL(1)>0; yL(1)=0; end; if yL(2)<0; yL(2)=0; end;
-dL = max(diff(xL),diff(yL))*0.05;
-set(axSim{end},'XLim',xL+[-dL dL],'YLim',yL+[-dL dL]);
-grid(axSim{end},'on'); axSim{end}.Color = 'k'; axSim{end}.GridColor = [0.5 0.5 0.5];
-xlabel(axSim{end},'real'); ylabel(axSim{end},'imag');
-title(axSim{end},'complex-domain signal evolution (simulation)');
+plotComplexDomain(axSim{end}, Ienc_norm_sim, 'tight', 'line');
+title(axSim{end}, 'complex-domain signal evolution (simulation)');
 
 if saveThis || ~exist(fullfile(info.project.figures,'matchedSimSummary.fig'),'file')
     saveas(        fSim, fullfile(info.project.figures,'matchedSimSummary.fig'));
@@ -920,8 +905,112 @@ end
 
 if 0
 saveThis = 0;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Plot in vivo summary -- sub-01 vessel-01, reference mag, velocity map, complex-domain signal
+%    on the model of phantom summary -- ISMRM2026-poster.pptx slide 10
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+s = 1; roiIdx = 1;
+img      = inVivoSubData{s}.img;
+imgInfo  = inVivoSubData{s}.imgInfo;
+refImgAv = inVivoSubData{s}.refImgAv;
+roiY     = inVivoSubRoiList{s}(roiIdx).roiY;
+roiX     = inVivoSubRoiList{s}(roiIdx).roiX;
+subName  = inVivoSubNames{s};
+
+% Reference magnitude (full slice)
+refMag_iv = squeeze(mean(abs(refImgAv), 7));
+
+% Velocity map at middle venc (averaged over runs and repetitions)
+vencList_iv = sort(unique(imgInfo.vencList(isfinite(imgInfo.vencList))));
+vencSel_iv  = vencList_iv(round(end/2));
+refAvg_iv   = squeeze(mean(img(:,:,:,:,:,:,imgInfo.vencList==inf,         :,:,:,:,:,:,:,:,:), [7 11]));
+selAvg_iv   = squeeze(mean(img(:,:,:,:,:,:,imgInfo.vencList==vencSel_iv,  :,:,:,:,:,:,:,:,:), [7 11]));
+velMap_iv   = phase2vel(angle(selAvg_iv ./ refAvg_iv), vencToM1(vencSel_iv));
+
+% ROI overlay -- separate figure
+hFroi = figure('MenuBar','none','ToolBar','none','Units','normalized','Position',[0 0 1 1]);
+hIm_roi = imagesc(refMag_iv);
+hold on;
+plot([roiX(1)-.5 roiX(2)+.5 roiX(2)+.5 roiX(1)-.5 roiX(1)-.5], ...
+     [roiY(1)-.5 roiY(1)-.5 roiY(2)+.5 roiY(2)+.5 roiY(1)-.5], 'c', 'LineWidth', 1);
+text(roiX(1), roiY(1), 'vessel01', 'Color','r','FontSize',12,'FontWeight','bold');
+axRoi = gca; axis image;
+set(axRoi,'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1]);
+axRoi.XAxis.Visible = 'off'; axRoi.YAxis.Visible = 'off';
+axRoi.CLim = [0, 0.5*max(hIm_roi.CData(:))];
+figName_roi = [subName '-vessel01-roiOverlay'];
+if saveThis || ~exist(fullfile(info.project.figures,[figName_roi '.png']),'file')
+    drawnow;
+    exportgraphics(hFroi, fullfile(info.project.figures,[figName_roi '.png']));
+    exportgraphics(hFroi, fullfile(info.project.figures,[figName_roi '.svg']));
+end
+close(hFroi);
+
+% Extract complex-domain signal for this ROI
+trjIV = img(roiY(1):roiY(2), roiX(1):roiX(2), :,:,:,:,:,:,:,:,:,:,:,:,:,:);
+runIdxList_iv = unique(imgInfo.runIdx);
+for rr = 1:length(runIdxList_iv)
+    idx_rr  = squeeze(imgInfo.runIdx==runIdxList_iv(rr) & imgInfo.vencList==inf);
+    refPhaseIV = angle(mean(trjIV(:,:,:,:,:,:,idx_rr,:,:,:,:,:,:,:,:,:), [7 11]));
+    idx_rr2 = squeeze(imgInfo.runIdx==runIdxList_iv(rr));
+    trjIV(:,:,:,:,:,:,idx_rr2,:,:,:,:,:,:,:,:,:) = ...
+        trjIV(:,:,:,:,:,:,idx_rr2,:,:,:,:,:,:,:,:,:) ./ exp(1i*refPhaseIV);
+end
+trjIV      = permute(mean(trjIV,[1 2]),[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
+trjIV      = trjIV ./ abs(mean(trjIV(1:2,:),[1 2]));
+trjVencIV  = permute(imgInfo.vencList,[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
+
+% Summary figure -- 3 rows × 4 cols, column-major
+f_ivs = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 18.5]);
+hT_ivs = tiledlayout(f_ivs,3,4,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor');
+ax_ivs = {};
+
+% Full-slice reference magnitude with ROI box
+ax_ivs{end+1} = nexttile(hT_ivs);
+imagesc(ax_ivs{end}, refMag_iv, [0, 0.5*max(refMag_iv(:))]);
+set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1]);
+hold(ax_ivs{end},'on');
+plot(ax_ivs{end}, [roiX(1)-.5 roiX(2)+.5 roiX(2)+.5 roiX(1)-.5 roiX(1)-.5], ...
+                  [roiY(1)-.5 roiY(1)-.5 roiY(2)+.5 roiY(2)+.5 roiY(1)-.5], 'c', 'LineWidth', 1);
+title(ax_ivs{end}, [subName ' vessel 01']);
+
+% ROI crop -- reference magnitude
+ax_ivs{end+1} = nexttile(hT_ivs);
+refMagCrop_iv = refMag_iv(roiY(1):roiY(2), roiX(1):roiX(2));
+imagesc(ax_ivs{end}, refMagCrop_iv, [0, max(refMagCrop_iv(:))]);
+set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1]);
+ylabel(colorbar(ax_ivs{end},'Location','westoutside'), 'MR magn. [a.u.]');
+title(ax_ivs{end}, 'ROI mag');
+
+% ROI crop -- velocity map
+ax_ivs{end+1} = nexttile(hT_ivs);
+velCrop_iv = velMap_iv(roiY(1):roiY(2), roiX(1):roiX(2));
+vLim_ivs = max(abs(velCrop_iv(:)));
+imagesc(ax_ivs{end}, velCrop_iv, [-vLim_ivs vLim_ivs]);
+set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',redblue,'DataAspectRatio',[imgInfo.res 1]);
+ylabel(colorbar(ax_ivs{end},'Location','westoutside'), 'velocity [cm/s]');
+title(ax_ivs{end}, sprintf('venc=%gcm/s', vencSel_iv));
+
+% Complex-domain signal (3 rows × 3 cols span)
+ax_ivs{end+1} = nexttile(hT_ivs,[3 3]);
+plotComplexDomain(ax_ivs{end}, trjIV(:), 'tight', 'markers');
+
+% Save
+figName_ivs = [subName '-vessel01-summary'];
+if saveThis || ~exist(fullfile(info.project.figures,[figName_ivs '.fig']),'file')
+    saveas(        f_ivs, fullfile(info.project.figures,[figName_ivs '.fig']));
+    exportgraphics(f_ivs, fullfile(info.project.figures,[figName_ivs '.png']));
+    exportgraphics(f_ivs, fullfile(info.project.figures,[figName_ivs '.svg']));
+end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+
+return
+
+if 0
+saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot in vivo summary -- reference mag, velocity map and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 10 (sub-01) and 11 (sub-02)
+%% Plot in vivo -- reference mag, velocity map and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 10 (sub-01) and 11 (sub-02)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
 
