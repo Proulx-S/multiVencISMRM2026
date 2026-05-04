@@ -1,0 +1,13 @@
+addpath(genpath('/scratch/bass/tools/util'));
+addpath(genpath('/scratch/bass/tools/pcMRAsim'));
+p = runSim;
+p.pMri.venc.method = 'PCmono';
+p.pMri.venc.vencList = [20 40]';
+p.pMri.venc.FVEres = 0; p.pMri.venc.FVEbw = 0;
+p.pMri.venc.FVEvel = []; p.pMri.venc.vencMin = []; p.pMri.venc.vencMax = [];
+p.pSim.nSpin = (2^6+1)^2;
+res = runSim(p.pVessel, p.pSim, p.pMri, [], false);
+fprintf('size(res.I) = '); disp(size(res.I));
+fprintf('info: %s\n', res.info);
+fprintf('size(res.magMap) = '); disp(size(res.magMap));
+fprintf('size(res.vMap) = '); disp(size(res.vMap));
