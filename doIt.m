@@ -67,13 +67,14 @@ info.project.storage         = projectStorage;         clear projectStorage
 info.project.scratch         = projectScratch;         clear projectScratch
 info.project.dataBase        = projectDataBase;        clear projectDataBase
 info.project.dataBasePhantom = projectDataBasePhantom; clear projectDataBasePhantom
+info.project.figures = fullfile(info.project.code, 'figures'); if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
 info.toClean = {};
 
 
 
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot simulation summary -- velocity map, mag map and and complex-domain signal evolution, for plug flow and laminar flow (both with flat magnitude profile) -- ISMRM2026-poster.pptx slide 7
@@ -141,11 +142,11 @@ for rowIdx = 1:2
     plotMultiVenc(axSim7{end}, IplotSim7{rowIdx}, vPlotSim7{rowIdx}, runArr, 'tight', 'jet');
     title(axSim7{end},{flowNamesSim7{rowIdx},'complex-domain signal'});
 end
-if ~exist(fullfile(info.project.storage, 'figures'),'dir'); mkdir(fullfile(info.project.storage, 'figures')); end
-if saveThis || ~exist(fullfile(info.project.storage,'figures','simSummary.fig'),'file')
-    saveas(        fSim7, fullfile(info.project.storage,'figures','simSummary.fig'));
-    exportgraphics(fSim7, fullfile(info.project.storage,'figures','simSummary.png'));
-    exportgraphics(fSim7, fullfile(info.project.storage,'figures','simSummary.svg'));
+if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
+if saveThis || ~exist(fullfile(info.project.figures,'simSummary.fig'),'file')
+    saveas(        fSim7, fullfile(info.project.figures,'simSummary.fig'));
+    exportgraphics(fSim7, fullfile(info.project.figures,'simSummary.png'));
+    exportgraphics(fSim7, fullfile(info.project.figures,'simSummary.svg'));
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
@@ -233,7 +234,7 @@ theta = linspace(0, 2*pi, 360);
 
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot phantom details -- all maps and masks with and without flow -- ISMRM2026-poster.pptx slide 8 and 9
@@ -275,11 +276,11 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
 
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'magFlowOn.fig'),'file')
-    if ~exist(fullfile(info.project.storage, 'figures'),'dir'); mkdir(fullfile(info.project.storage, 'figures')); end
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'magFlowOn.fig'       ));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'magFlowOn.png'       ));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'magFlowOn.svg'       ));
+if saveThis || ~exist(fullfile(info.project.figures,'magFlowOn.fig'),'file')
+    if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
+    saveas(        f      , fullfile(info.project.figures,'magFlowOn.fig'       ));
+    exportgraphics(f      , fullfile(info.project.figures,'magFlowOn.png'       ));
+    exportgraphics(f      , fullfile(info.project.figures,'magFlowOn.svg'       ));
 end
 
 
@@ -318,10 +319,10 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
     
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'magFlowOff.fig'),'file')
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'magFlowOff.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'magFlowOff.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'magFlowOff.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'magFlowOff.fig'),'file')
+    saveas(        f      , fullfile(info.project.figures,'magFlowOff.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'magFlowOff.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'magFlowOff.svg'));
 end
 
 
@@ -361,10 +362,10 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
 
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'phaseFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'phaseFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'phaseFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'phaseFlowOn.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'phaseFlowOn.fig'),'file')
+    saveas(        f      , fullfile(info.project.figures,'phaseFlowOn.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOn.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOn.svg'));
 end
 
 
@@ -405,10 +406,10 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
 
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'phaseFlowOff.fig'),'file')
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'phaseFlowOff.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'phaseFlowOff.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'phaseFlowOff.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'phaseFlowOff.fig'),'file')
+    saveas(        f      , fullfile(info.project.figures,'phaseFlowOff.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOff.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOff.svg'));
 end
 
 
@@ -461,10 +462,10 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
 
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'CDvelFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'CDvelFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'CDvelFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'CDvelFlowOn.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'CDvelFlowOn.fig'),'file')
+    saveas(        f      , fullfile(info.project.figures,'CDvelFlowOn.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'CDvelFlowOn.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'CDvelFlowOn.svg'));
 end
 
 
@@ -508,10 +509,10 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
 
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'PDvelFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'PDvelFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'PDvelFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'PDvelFlowOn.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'PDvelFlowOn.fig'),'file')
+    saveas(        f      , fullfile(info.project.figures,'PDvelFlowOn.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'PDvelFlowOn.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'PDvelFlowOn.svg'));
 end
 
 
@@ -555,10 +556,10 @@ plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
 title(ax{end},'blood-only mask');
 
 %save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'PvelFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'PvelFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'PvelFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'PvelFlowOn.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'PvelFlowOn.fig'),'file')
+    saveas(        f      , fullfile(info.project.figures,'PvelFlowOn.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'PvelFlowOn.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'PvelFlowOn.svg'));
 end
 
 
@@ -567,11 +568,12 @@ end
 
 
 if 1
-saveThis = 0;
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot phantom details -- radial profiles -- ISMRM2026-poster.pptx slide 9
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 M_rad  = abs(mean(data(:,:,dataVenc==inf),3));
+M_rad2 = abs(mean(data(:,:,dataVenc==2  ),3));
 PD_rad = angle(mean(data(:,:,dataVenc==bestVenc) ./ exp(1j.*angle(mean(data(:,:,dataVenc==inf),3))), 3));
 m1best = vencToM1(bestVenc);
 velPD_rad = phase2vel(PD_rad, m1best); % [cm/s]
@@ -579,22 +581,32 @@ velPD_rad = phase2vel(PD_rad, m1best); % [cm/s]
 if mean(velPD_rad(maskBloodOnly)) < 0; velPD_rad = -velPD_rad; end
 
 idxBlood = maskBloodOnly;
-idxSel1  = maskBloodOnly | (maskTissueOnly & rGrid<OD/2);
+idxVel   = ~logical(maskWallLowMag);
+idxMag   = true(size(rGrid));
 
 % Parabolic fit to velocity vs. radius (blood-only pixels)
 rFit3  = double(rGrid(idxBlood));
 vFit3  = double(velPD_rad(idxBlood));
-parabola_fun3 = @(vMax, r) vMax .* (1 - (r./(ID/2)).^2);
-rFine3 = linspace(0, ID/2, 100);
-lb3 = 0; opts3 = optimoptions('lsqcurvefit','Display','off','MaxIterations',2000);
-vMax_fit3 = lsqcurvefit(parabola_fun3, max(vFit3), rFit3(:), vFit3(:), lb3, [], opts3);
+rFine3 = linspace(0, max(rFit3), 100);
+ft_vel  = fittype('vMax * (1 - (x/R)^2)', 'independent', 'x', 'problem', 'R', 'coefficients', {'vMax'});
+vel_fit = fit(rFit3(:), vFit3(:), ft_vel, 'problem', {ID/2}, 'Lower', 0, 'StartPoint', max(vFit3));
+vMax_fit3  = vel_fit.vMax;
 vMean_fit3 = vMax_fit3 / 2;
-vFitLine3  = parabola_fun3(vMax_fit3, rFine3);
-fprintf('Radial profile fit: vMax=%.3f cm/s, vMean=%.3f cm/s\n', vMax_fit3, vMean_fit3);
+vFitLine3  = vel_fit(rFine3(:));
+
+ft_vel2  = fittype('vMax * (1 - (x/R)^2)', 'independent', 'x', 'coefficients', {'vMax', 'R'});
+vel_fit2 = fit(rFit3(:), vFit3(:), ft_vel2, 'Lower', [0, 0], 'StartPoint', [max(vFit3), ID/2]);
+vMax_fit3b  = vel_fit2.vMax;
+R_fit3b     = vel_fit2.R;
+vMean_fit3b = vMax_fit3b / 2;
+vFitLine3b  = vel_fit2(rFine3(:));
+
+fprintf('Constrained fit (R=ID/2=%.3fmm): vMax=%.3f cm/s, vMean=%.3f cm/s\n', ID/2, vMax_fit3, vMean_fit3);
+fprintf('Free fit        (R=%.3fmm):      vMax=%.3f cm/s, vMean=%.3f cm/s\n', R_fit3b, vMax_fit3b, vMean_fit3b);
 
 % Polynomial fit to magnitude vs. radius (blood-only, linear in r^2)
-pMag3     = polyfit(double(rGrid(idxBlood)).^2, double(M_rad(idxBlood)), 1);
-MFitLine3 = polyval(pMag3, rFine3.^2);
+mag_fit   = fit(double(rGrid(idxBlood(:))).^2, double(M_rad(idxBlood(:))), 'poly1');
+MFitLine3 = mag_fit(rFine3(:).^2);
 
 theta_circ = linspace(0,2*pi,360);
 
@@ -603,25 +615,29 @@ hT = tiledlayout(f,2,3,'TileSpacing','compact','Padding','compact'); ax = {};
 
 % velocity vs. radial position with parabolic fit
 ax{end+1} = nexttile(hT);
-plot(rGrid(idxSel1), velPD_rad(idxSel1), '.', 'Color', [0.5 0.5 0.8]);
+plot(rGrid(idxVel), velPD_rad(idxVel), '.', 'Color', [0.5 0.5 0.8]);
 hold on
-plot(rFine3, vFitLine3, 'r-', 'LineWidth', 2);
+% plot(rFine3, vFitLine3,  '-', 'Color', [0.5 0.5 0.8], 'LineWidth', 2);
+plot(rFine3, vFitLine3b, '-', 'Color', [0.9 0.6 0.1], 'LineWidth', 2);
+xline(ID/2, 'w--'); xline(OD/2, 'w--');
 xlabel('off-center position [mm]'); ylabel('velocity (cm/s)');
-title(sprintf('velocity profile\nvMax=%.2f, vMean=%.2f cm/s', vMax_fit3, vMean_fit3));
-grid on; legend('data','parabolic fit','Location','north');
+title(sprintf('velocity profile\nvMean: est=%.2f, true=%.2f cm/s\ndiam: est=%.2f, true=%.2f mm', vMean_fit3b, vMean_fit3, 2*R_fit3b, ID));
+grid on; legend('data', sprintf('free fit (R=%.2fmm)', R_fit3b), 'ID/2','OD/2','Location','north');
 
 % magnitude vs. radial position with polynomial fit
 ax{end+1} = nexttile(hT);
-plot(rGrid(idxSel1), M_rad(idxSel1), '.', 'Color', [0.5 0.8 0.5]);
+plot(rGrid(idxMag), M_rad( idxMag), '.', 'Color', [0.5 0.8 0.5]);
 hold on
-plot(rFine3, MFitLine3, 'r-', 'LineWidth', 2);
+plot(rGrid(idxMag), M_rad2(idxMag), '.', 'Color', [0.8 0.6 0.2]);
+plot(rFine3, MFitLine3, '-', 'Color', [0.5 0.8 0.5], 'LineWidth', 2);
+xline(ID/2, 'w--'); xline(OD/2, 'w--');
 xlabel('off-center position [mm]'); ylabel('MR signal magnitude [a.u.]');
 title('magnitude profile'); grid on;
-legend('data','polynomial fit','Location','north');
+legend('venc=inf','venc=2','polynomial fit (venc=inf)','ID/2','OD/2','Location','north');
 
 % phase vs. magnitude scatter
 ax{end+1} = nexttile(hT);
-plot(velPD_rad(idxSel1), M_rad(idxSel1), '.', 'Color', [0.8 0.5 0.5]);
+plot(velPD_rad(idxBlood), M_rad(idxBlood), '.', 'Color', [0.8 0.5 0.5]);
 xlabel('velocity (cm/s)'); ylabel('MR signal magnitude [a.u.]');
 title('velocity vs. magnitude'); grid on;
 
@@ -648,17 +664,20 @@ ax{end}.Colormap = gray;
 hold on; plot(ID/2*cos(theta_circ), ID/2*sin(theta_circ), 'm', 'LineWidth', 1.5);
 set(ax{end},'XTick',[],'YTick',[]); title('blood-only mask');
 
-if saveThis || ~exist(fullfile(info.project.storage,'figures','radialProfiles.fig'),'file')
-    saveas(        f, fullfile(info.project.storage,'figures','radialProfiles.fig'));
-    exportgraphics(f, fullfile(info.project.storage,'figures','radialProfiles.png'));
-    exportgraphics(f, fullfile(info.project.storage,'figures','radialProfiles.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'radialProfiles.fig'),'file')
+    saveas(        f, fullfile(info.project.figures,'radialProfiles.fig'));
+    exportgraphics(f, fullfile(info.project.figures,'radialProfiles.png'));
+    exportgraphics(f, fullfile(info.project.figures,'radialProfiles.svg'));
+end
+if saveThis || ~exist(fullfile(info.project.figures,'radialProfiles.mat'),'file')
+    save(fullfile(info.project.figures,'radialProfiles.mat'), 'vel_fit', 'vel_fit2', 'mag_fit');
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot phantom summary -- reference mag, velocity map at good venc and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 8
@@ -719,24 +738,26 @@ Irun  = squeeze(dataRun);
 plotMultiVenc(ax{end},I,Ivenc,Irun,[],'hot');
 
 % Save
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'phantomSummary.fig'))
-    saveas(        f      , fullfile(info.project.storage, 'figures', 'phantomSummary.fig'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'phantomSummary.png'));
-    exportgraphics(f      , fullfile(info.project.storage, 'figures', 'phantomSummary.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'phantomSummary.fig'))
+    saveas(        f      , fullfile(info.project.figures,'phantomSummary.fig'));
+    exportgraphics(f      , fullfile(info.project.figures,'phantomSummary.png'));
+    exportgraphics(f      , fullfile(info.project.figures,'phantomSummary.svg'));
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
-
+return
 if 1
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot matched simulation summary -- same format as phantom summary but all from simulation
-%%   -- spatial maps (rows=PE, cols=FE in runSim → transposed for display: rows=FE, cols=PE)
-%%   -- magnitude calibrated so lumen/surround ratio matches phantom
-%%   -- complex-domain spiral with fine, evenly-M1-spaced venc sweep (smooth line)
-%%   -- ISMRM2026-poster.pptx slide 8
+%    spatial maps (rows=PE, cols=FE in runSim → transposed for display: rows=FE, cols=PE)
+%    magnitude calibrated so lumen/surround ratio matches phantom
+%    complex-domain spiral with fine, evenly-M1-spaced venc sweep (smooth line)
+%    ISMRM2026-poster.pptx slide 8
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+load(fullfile(info.project.figures,'radialProfiles.mat'), 'vel_fit', 'mag_fit');
+vMean_fit3 = vel_fit.vMax / 2;
 % Fine M1-spaced venc list for smooth spiral (400 steps, evenly spaced in M1)
 gamma_phys_sim = 2.6752218708e8 / (2*pi); % Hz/T
 M1_max_sim     = vencToM1(2);             % M1 for venc=2 cm/s
@@ -747,7 +768,7 @@ venc_fine_sim  = pi * 100 ./ (gamma_phys_sim .* M1_fine_sim); % [cm/s]
 pDefSim = runSim;
 pVesselSim           = pDefSim.pVessel;
 pVesselSim.ID        = ID;
-pVesselSim.WT        = 2.38125;
+pVesselSim.WT        = OD/2-ID/2; %2.38125;
 pVesselSim.vMean     = vMean_fit3;
 pVesselSim.profile   = 'parabolic1';
 pVesselSim.S.lumen   = []; % velocity-dependent inflow (auto)
@@ -854,16 +875,16 @@ grid(axSim{end},'on'); axSim{end}.Color = 'k'; axSim{end}.GridColor = [0.5 0.5 0
 xlabel(axSim{end},'real'); ylabel(axSim{end},'imag');
 title(axSim{end},'complex-domain signal evolution (simulation)');
 
-if saveThis || ~exist(fullfile(info.project.storage,'figures','matchedSimSummary.fig'),'file')
-    saveas(        fSim, fullfile(info.project.storage,'figures','matchedSimSummary.fig'));
-    exportgraphics(fSim, fullfile(info.project.storage,'figures','matchedSimSummary.png'));
-    exportgraphics(fSim, fullfile(info.project.storage,'figures','matchedSimSummary.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'matchedSimSummary.fig'),'file')
+    saveas(        fSim, fullfile(info.project.figures,'matchedSimSummary.fig'));
+    exportgraphics(fSim, fullfile(info.project.figures,'matchedSimSummary.png'));
+    exportgraphics(fSim, fullfile(info.project.figures,'matchedSimSummary.svg'));
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Load in vivo data -- sub-01 and sub-02
@@ -897,12 +918,12 @@ end
 end
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot in vivo summary -- reference mag, velocity map and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 10 (sub-01) and 11 (sub-02)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if ~exist(fullfile(info.project.storage, 'figures'),'dir'); mkdir(fullfile(info.project.storage, 'figures')); end
+if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
 
 for s = 1:2
     img      = inVivoSubData{s}.img;
@@ -925,10 +946,10 @@ for s = 1:2
     ax.XAxis.Visible = 'off'; ax.YAxis.Visible = 'off';
     ax.CLim = [0, 1/2*max(hIm.CData(:))];
     set(hBox,'LineWidth',0.5);
-    if saveThis || ~exist(fullfile(info.project.storage,'figures',[inVivoSubNames{s} '-roiOverlay.png']),'file')
+    if saveThis || ~exist(fullfile(info.project.figures,[inVivoSubNames{s} '-roiOverlay.png']),'file')
         drawnow;
-        exportgraphics(hF, fullfile(info.project.storage,'figures',[inVivoSubNames{s} '-roiOverlay.png']));
-        exportgraphics(hF, fullfile(info.project.storage,'figures',[inVivoSubNames{s} '-roiOverlay.svg']));
+        exportgraphics(hF, fullfile(info.project.figures,[inVivoSubNames{s} '-roiOverlay.png']));
+        exportgraphics(hF, fullfile(info.project.figures,[inVivoSubNames{s} '-roiOverlay.svg']));
     end
     close(hF); clear hBox hText
 
@@ -988,10 +1009,10 @@ for s = 1:2
         uistack(plot(x,y,'w'),'bottom');
         title(legend(hPcont,trjVencLabel),'V_{enc} (cm/s)');
         vesselFigName = [inVivoSubNames{s} '_vessel-' num2str(roiIdx,'%02d')];
-        if saveThis || ~exist(fullfile(info.project.storage,'figures',[vesselFigName '.png']),'file')
+        if saveThis || ~exist(fullfile(info.project.figures,[vesselFigName '.png']),'file')
             drawnow;
-            exportgraphics(hFv, fullfile(info.project.storage,'figures',[vesselFigName '.png']));
-            exportgraphics(hFv, fullfile(info.project.storage,'figures',[vesselFigName '.svg']));
+            exportgraphics(hFv, fullfile(info.project.figures,[vesselFigName '.png']));
+            exportgraphics(hFv, fullfile(info.project.figures,[vesselFigName '.svg']));
         end
         close(hFv); clear hPcont d prob
     end
@@ -1002,7 +1023,7 @@ end
 
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Illustrate the effect of inflow on FVE spectrum -- ISMRM2026-poster.pptx slide 12
@@ -1045,14 +1066,14 @@ hStairs = stairs(inflowVel,inflowMz,'g');
 axis tight square; grid on; xlabel('spin velocity (cm/s)'); ylabel('M_z');
 ylim([0 1])
 
-if ~exist(fullfile(info.project.storage, 'figures'),'dir'); mkdir(fullfile(info.project.storage, 'figures')); end
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'FVEvelSpec.fig'),'file') || ~exist(fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.fig'),'file')
-    saveas(        fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.fig'       ));
-    exportgraphics(fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.png'       ));
-    exportgraphics(fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.svg'       ));
-    saveas(        fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.fig'));
-    exportgraphics(fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.png'));
-    exportgraphics(fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.svg'));
+if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
+if saveThis || ~exist(fullfile(info.project.figures,'FVEvelSpec.fig'),'file') || ~exist(fullfile(info.project.figures,'FVEvelSpec_inflow.fig'),'file')
+    saveas(        fVelSpec      , fullfile(info.project.figures,'FVEvelSpec.fig'       ));
+    exportgraphics(fVelSpec      , fullfile(info.project.figures,'FVEvelSpec.png'       ));
+    exportgraphics(fVelSpec      , fullfile(info.project.figures,'FVEvelSpec.svg'       ));
+    saveas(        fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.fig'));
+    exportgraphics(fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.png'));
+    exportgraphics(fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.svg'));
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fVelSpec; % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
