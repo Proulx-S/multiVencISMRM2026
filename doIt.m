@@ -74,8 +74,8 @@ info.toClean = {};
 
 
 
-if 1
-saveThis = 1;
+if 0
+saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot simulation summary -- velocity map, mag map and and complex-domain signal evolution, for plug flow and laminar flow (both with flat magnitude profile) -- ISMRM2026-poster.pptx slide 7
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -569,8 +569,8 @@ end
 end
 
 
-if 0
-saveThis = 0;
+if 1
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot phantom details -- radial profiles -- ISMRM2026-poster.pptx slide 9
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -610,6 +610,18 @@ fprintf('Free fit        (R=%.3fmm):      vMax=%.3f cm/s, vMean=%.3f cm/s\n', R_
 mag_fit   = fit(double(rGrid(idxBlood(:))).^2, double(M_rad(idxBlood(:))), 'poly1');
 MFitLine3 = mag_fit(rFine3(:).^2);
 
+% Theoretical inflow enhancement: Mz as a function of velocity
+p_inflow = runSim;
+p_inflow.pMri.fieldStrength = 3;
+p_inflow.pMri.species = 'phantom';
+p_inflow.pMri.sliceThickness = 2.2;
+p_inflow.pMri.TR = 75.90/(5+1)/1000;
+p_inflow.pMri.TE = 9.8/1000;
+p_inflow.pMri.FA = 50;
+p_inflow = runSim([],[],p_inflow.pMri);
+
+[Mz_inflow,~,~,~,~,velInflow] = getMz_ss(p_inflow.pMri, p_inflow.pMri.relax.blood);
+
 theta_circ = linspace(0,2*pi,360);
 
 f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
@@ -637,10 +649,17 @@ xlabel('off-center position [mm]'); ylabel('MR signal magnitude [a.u.]');
 title('magnitude profile'); grid on;
 legend('venc=inf','venc=2','polynomial fit (venc=inf)','ID/2','OD/2','Location','north');
 
-% phase vs. magnitude scatter
+% velocity vs. magnitude scatter + theoretical inflow enhancement
 ax{end+1} = nexttile(hT);
-plot(velPD_rad(idxBlood), M_rad(idxBlood), '.', 'Color', [0.8 0.5 0.5]);
+% yyaxis left
+plot(velPD_rad(idxBlood), M_rad(idxBlood), '.', 'Color', [0.8 0.5 0.5]); hold on
 xlabel('velocity (cm/s)'); ylabel('MR signal magnitude [a.u.]');
+% ylim([0 inf]);
+% yyaxis right
+Mxy_inflow = getMxy_ss(Mz_inflow, p_inflow.pMri, p_inflow.pMri.relax);
+stairs(velInflow, Mxy_inflow/1000000, 'b-', 'LineWidth', 1.5);
+ylabel('M_z [a.u.] (inflow enhancement)');
+% ylim([0 1]);
 title('velocity vs. magnitude'); grid on;
 
 % velocity 2D map
