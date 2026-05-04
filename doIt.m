@@ -74,60 +74,16 @@ info.toClean = {};
 
 if 0
 saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Illustrate the effect of inflow on FVE spectrum
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-p = runSim;
-tmp = runSim(p.pVessel,p.pSim,p.pMri);
-p.pVessel.vMean = tmp.pMri.vCrit/2*1.5;
-p.pMri.FA = 90;
-p.pMri.venc.method = 'FVEmono';
-p.pMri.venc.FVEbw = p.pVessel.vMean*4;
-p.pMri.venc.FVEres = p.pMri.venc.FVEbw./200;
-p.pSim.nSpin = (2^10+1)^2;
-res      = runSim(p.pVessel,p.pSim,p.pMri,[],0);
-% p.pMri.sliceThickness = inf;
-Mz  = getMz_ss(p.pMri,p.pMri.relax.blood,p.pVessel.vMean);
-Mxy = getMxy_ss(Mz,p.pMri,p.pMri.relax.blood);
-p.pVessel.S.lumen = Mxy;
-resSatin = runSim(p.pVessel,p.pSim,p.pMri);
-
-fVelSpec = figure;
-hFlat = plot(resSatin.pMri.venc.FVEvel,abs(fftshift(fft(squeeze(resSatin.I)))),'w');
-hold on
-hVdep = plot(res.pMri.venc.FVEvel     ,abs(fftshift(fft(squeeze(res.I))))     ,'g');
-axis tight; grid on; xlabel('velocity (cm/s)'); ylabel('velocity spectrum/histogram');
-yLim = ylim; yLim(1) = 0; ylim(yLim);
-[N,edges] = histcounts(res.vMap(res.pSim.gridVoxIdx==0),20);
-% binWidth = mean(diff(edges));
-% edges = edges-binWidth/2; edges(end+1) = edges(end)+binWidth;
-% [N,edges] = histcounts(res.vMap(res.pSim.gridVoxIdx==0),edges);
-hVhist = histogram('BinEdges',edges,'BinCounts',N/max(N)*yLim(2),'FaceColor',0.5.*[1 1 1],'EdgeColor','none');
-legend([hFlat,hVdep,hVhist],['velocity spectrum from' newline 'flat magnitude profile'],['velocity spectrum from' newline 'velocity-dependent magnitude profile'],'normalized velocity histogram','Location','northwest','box','off');
-uistack(hVhist,'bottom');
-
-fVelSpecInflow = figure;
-% inflowVel = linspace(0,p.pVessel.vMean*3,2^10);
-inflowVel = linspace(0,6,2^10);
-[inflowMz,~,~,~,~,inflowVel] = getMz_ss(p.pMri,p.pMri.relax.blood,inflowVel);
-% inflowMxy = getMxy_ss(inflowMz,p.pMri,p.pMri.relax.blood);
-hStairs = stairs(inflowVel,inflowMz,'g');
-axis tight square; grid on; xlabel('spin velocity (cm/s)'); ylabel('M_z');
-ylim([0 1])
-
-if ~exist(fullfile(info.project.storage, 'figures'),'dir'); mkdir(fullfile(info.project.storage, 'figures')); end
-if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'FVEvelSpec.fig'),'file') || ~exist(fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.fig'),'file')
-    saveas(        fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.fig'       ));
-    exportgraphics(fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.png'       ));
-    exportgraphics(fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.svg'       ));
-    saveas(        fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.fig'));
-    exportgraphics(fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.png'));
-    exportgraphics(fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.svg'));
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Plot simulation summary -- velocity map, mag map and and complex-domain signal evolution, for plug flow and laminar flow (both with flat magnitude profile)w -- ISMRM2026-poster.pptx slide 7
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% to be completed
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-fVelSpec; % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
-fVelSpecInflow; % Here the weighting effect was maximized using a 90 flip angle for a linear magnitude function of velocity
-end
+
+
+
+
 
 
 
@@ -211,12 +167,10 @@ theta = linspace(0, 2*pi, 360);
 
 
 
-
-
 if 1
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom details -- all maps with and without flow
+%% Plot phantom details -- all maps and masks with and without flow -- ISMRM2026-poster.pptx slide 8 and 9
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Mag flow on
 f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
@@ -544,13 +498,11 @@ end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
-return
-
 
 if 1
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom details -- radial profiles
+%% Plot phantom details -- radial profiles -- ISMRM2026-poster.pptx slide 9
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
 hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
@@ -626,12 +578,10 @@ end
 
 
 
-
-
 if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom summary -- reference mag, velocity map, masks, and complex-domain signal evolution
+%% Plot phantom (implemented) and matched-simulation (to be implemented) summary -- reference mag, velocity map at good venc and complex-domain signal evolution, both for phantom data and simulation matched to phantom data -- ISMRM2026-poster.pptx slide 8
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 18.5]);
 hT = tiledlayout(f,3,5,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
@@ -708,7 +658,22 @@ end
 end
 
 
-return
+
+
+if 0
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Plot in vivo summary -- reference mag, velocity map and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 10 (sub-01) and 11 (sub-02)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% please complete
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+
+
+
+
+
+
 
 
 % p = runSim;
@@ -819,6 +784,65 @@ saveas(f,fullfile(pwd,'phantom03_phantomAndSimulationSetup.eps'))
 
 
 
+
+
+
+if 0
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Illustrate the effect of inflow on FVE spectrum
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+p = runSim;
+tmp = runSim(p.pVessel,p.pSim,p.pMri);
+p.pVessel.vMean = tmp.pMri.vCrit/2*1.5;
+p.pMri.FA = 90;
+p.pMri.venc.method = 'FVEmono';
+p.pMri.venc.FVEbw = p.pVessel.vMean*4;
+p.pMri.venc.FVEres = p.pMri.venc.FVEbw./200;
+p.pSim.nSpin = (2^10+1)^2;
+res      = runSim(p.pVessel,p.pSim,p.pMri,[],0);
+% p.pMri.sliceThickness = inf;
+Mz  = getMz_ss(p.pMri,p.pMri.relax.blood,p.pVessel.vMean);
+Mxy = getMxy_ss(Mz,p.pMri,p.pMri.relax.blood);
+p.pVessel.S.lumen = Mxy;
+resSatin = runSim(p.pVessel,p.pSim,p.pMri);
+
+fVelSpec = figure;
+hFlat = plot(resSatin.pMri.venc.FVEvel,abs(fftshift(fft(squeeze(resSatin.I)))),'w');
+hold on
+hVdep = plot(res.pMri.venc.FVEvel     ,abs(fftshift(fft(squeeze(res.I))))     ,'g');
+axis tight; grid on; xlabel('velocity (cm/s)'); ylabel('velocity spectrum/histogram');
+yLim = ylim; yLim(1) = 0; ylim(yLim);
+[N,edges] = histcounts(res.vMap(res.pSim.gridVoxIdx==0),20);
+% binWidth = mean(diff(edges));
+% edges = edges-binWidth/2; edges(end+1) = edges(end)+binWidth;
+% [N,edges] = histcounts(res.vMap(res.pSim.gridVoxIdx==0),edges);
+hVhist = histogram('BinEdges',edges,'BinCounts',N/max(N)*yLim(2),'FaceColor',0.5.*[1 1 1],'EdgeColor','none');
+legend([hFlat,hVdep,hVhist],['velocity spectrum from' newline 'flat magnitude profile'],['velocity spectrum from' newline 'velocity-dependent magnitude profile'],'normalized velocity histogram','Location','northwest','box','off');
+uistack(hVhist,'bottom');
+
+fVelSpecInflow = figure;
+% inflowVel = linspace(0,p.pVessel.vMean*3,2^10);
+inflowVel = linspace(0,6,2^10);
+[inflowMz,~,~,~,~,inflowVel] = getMz_ss(p.pMri,p.pMri.relax.blood,inflowVel);
+% inflowMxy = getMxy_ss(inflowMz,p.pMri,p.pMri.relax.blood);
+hStairs = stairs(inflowVel,inflowMz,'g');
+axis tight square; grid on; xlabel('spin velocity (cm/s)'); ylabel('M_z');
+ylim([0 1])
+
+if ~exist(fullfile(info.project.storage, 'figures'),'dir'); mkdir(fullfile(info.project.storage, 'figures')); end
+if saveThis || ~exist(fullfile(info.project.storage, 'figures', 'FVEvelSpec.fig'),'file') || ~exist(fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.fig'),'file')
+    saveas(        fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.fig'       ));
+    exportgraphics(fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.png'       ));
+    exportgraphics(fVelSpec      , fullfile(info.project.storage, 'figures', 'FVEvelSpec.svg'       ));
+    saveas(        fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.fig'));
+    exportgraphics(fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.png'));
+    exportgraphics(fVelSpecInflow, fullfile(info.project.storage, 'figures', 'FVEvelSpec_inflow.svg'));
+end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+fVelSpec; % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
+fVelSpecInflow; % Here the weighting effect was maximized using a 90 flip angle for a linear magnitude function of velocity
+end
 
 
 
