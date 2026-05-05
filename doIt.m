@@ -227,9 +227,10 @@ d_far  = sqrt((dFE + FEspacing/2).^2 + (dPE + PEspacing/2).^2);
 % nearest point of each pixel to the center
 d_near = sqrt(max(0, dFE - FEspacing/2).^2 + max(0, dPE - PEspacing/2).^2);                                                                   
 
-maskBloodOnly  = d_far  < ID/2;     % pixel entirely inside inner circle
-maskTissueOnly = d_near > OD/2;    % pixel entirely outside outer circle  
-maskWallLowMag = single(M<0.44e-7); % low magnitude pixels
+maskBloodOnly  = d_far  < ID/2;              % pixel entirely inside inner circle
+maskWallOnly   = d_near > ID/2 & d_far < OD/2; % pixel entirely within wall annulus
+maskTissueOnly = d_near > OD/2;              % pixel entirely outside outer circle
+maskWallLowMag = single(M<0.44e-7);          % low magnitude pixels
 
 theta = linspace(0, 2*pi, 360);                                                                                                               
 %% %%%%%%%%%%%%%%%%%
@@ -606,9 +607,15 @@ vFitLine3b  = vel_fit2(rFine3(:));
 fprintf('Constrained fit (R=ID/2=%.3fmm): vMax=%.3f cm/s, vMean=%.3f cm/s\n', ID/2, vMax_fit3, vMean_fit3);
 fprintf('Free fit        (R=%.3fmm):      vMax=%.3f cm/s, vMean=%.3f cm/s\n', R_fit3b, vMax_fit3b, vMean_fit3b);
 
-% Polynomial fit to magnitude vs. radius (blood-only, linear in r^2)
-mag_fit   = fit(double(rGrid(idxBlood(:))).^2, double(M_rad(idxBlood(:))), 'poly1');
-MFitLine3 = mag_fit(rFine3(:).^2);
+% % Polynomial fit to magnitude vs. radius (blood-only, linear in r^2)
+% mag_fit   = fit(double(rGrid(idxBlood(:))).^2, double(M_rad(idxBlood(:))), 'poly1');
+% MFitLine3 = mag_fit(rFine3(:).^2);
+
+% Degree-2 polynomial in r with maximum fixed at r=0: f(r) = a + b*r^2
+ft_mag  = fittype('a + b*x^2', 'independent', 'x', 'coefficients', {'a', 'b'});
+mag_fit = fit(double(rGrid(idxBlood(:))), double(M_rad(idxBlood(:))), ft_mag, ...
+    'StartPoint', [max(double(M_rad(idxBlood(:)))), -1]);
+MFitLine3 = mag_fit(rFine3(:));
 
 % Theoretical inflow enhancement: Mz as a function of velocity
 p_inflow = runSim;
@@ -769,98 +776,117 @@ end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
+
+return
+
 if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot matched simulation summary -- same format as phantom summary but all from simulation
 %    spatial maps (rows=PE, cols=FE in runSim → transposed for display: rows=FE, cols=PE)
-%    magnitude calibrated so lumen/surround ratio matches phantom
-%    complex-domain spiral with fine, evenly-M1-spaced venc sweep (smooth line)
 %    ISMRM2026-poster.pptx slide 8
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 load(fullfile(info.project.figures,'radialProfiles.mat'), 'vel_fit', 'mag_fit');
-vMean_fit3 = vel_fit.vMax / 2;
-% Fine M1-spaced venc list for smooth spiral (400 steps, evenly spaced in M1)
-gamma_phys_sim = 2.6752218708e8 / (2*pi); % Hz/T
-M1_max_sim     = vencToM1(2);             % M1 for venc=2 cm/s
-nSteps_sim     = 400;
-M1_fine_sim    = linspace(M1_max_sim/nSteps_sim, M1_max_sim, nSteps_sim);
-venc_fine_sim  = pi * 100 ./ (gamma_phys_sim .* M1_fine_sim); % [cm/s]
 
-pDefSim = runSim;
-pVesselSim           = pDefSim.pVessel;
-pVesselSim.ID        = ID;
-pVesselSim.WT        = OD/2-ID/2; %2.38125;
-pVesselSim.vMean     = vMean_fit3;
-pVesselSim.profile   = 'parabolic1';
-pVesselSim.S.lumen   = []; % velocity-dependent inflow (auto)
-pVesselSim.S.wall    = 0;
-pSimSim              = pDefSim.pSim;
-pSimSim.fovFE        = size(data,1) * FEspacing; % match phantom FOV exactly
-pSimSim.fovPE        = size(data,2) * PEspacing;
-pSimSim.matFE        = 3;
-pSimSim.matPE        = 3;
-pSimSim.nSpin        = (2^8+1)^2;
-pMriSim              = pDefSim.pMri;
-pMriSim.venc.method  = 'PCmono';
-pMriSim.venc.vencList = venc_fine_sim(:);
-pMriSim.venc.FVEres  = 0; pMriSim.venc.FVEbw = 0;
-pMriSim.venc.FVEvel  = []; pMriSim.venc.vencMin = []; pMriSim.venc.vencMax = [];
-resSim = runSim(pVesselSim, pSimSim, pMriSim, [], false); % light=false → keep magMap/vMap
+% Set up simulation
+p = runSim;
+pSim    = p.pSim;
+pVessel = p.pVessel;
+pMri    = p.pMri;
 
-% Calibrate surround magnitude to match phantom lumen/tissue ratio
-lumen_mask_sim    = resSim.pVessel.mask.lumen;
-wall_mask_sim     = resSim.pVessel.mask.wall;
-surround_mask_sim = resSim.pVessel.mask.surround;
-magMap_sim = double(resSim.magMap); % per-spin units (S/nSpin)
-S_lumen_ps = mean(magMap_sim(lumen_mask_sim));
-S_surround_corrected_ps = S_lumen_ps / (mean(abs(M(maskBloodOnly))) / mean(abs(M(maskTissueOnly))));
-magMap_sim(surround_mask_sim) = S_surround_corrected_ps;
-magMap_sim(wall_mask_sim)     = 0;
+% match voxel grid to phantom data
+pSim.voxGrid.fovFE = size(data,1) * FEspacing; % match phantom FOV exactly
+pSim.voxGrid.fovPE = size(data,2) * PEspacing;
+pSim.voxGrid.matFE = size(data,1);
+pSim.voxGrid.matPE = size(data,2);
+pSim.nSpin        = (2^10)^2;
+pSim.gridMode     = 'pseudoVoxel';
 
-% Grid axes: runSim grid rows=PE, cols=FE → transpose for display (rows=FE, cols=PE)
-FEax_sim = resSim.pSim.gridFE(1,:); % FE values (varies along cols)
-PEax_sim = resSim.pSim.gridPE(:,1); % PE values (varies along rows)
-magMap_T    = magMap_sim';           % after transpose: rows=FE, cols=PE
-vMap_T      = double(resSim.vMap)';
-lumen_T     = lumen_mask_sim';
-wall_T      = wall_mask_sim';
-surround_T  = surround_mask_sim';
+% match vessel geometry to phantom data (fitted values)
+pVessel.ID        = vel_fit.R*2;
+pVessel.WT        = OD/2-ID/2; %2.38125;
+% match vessel velocity to phantom data (fitted values again)
+pVessel.vMean     = vel_fit.vMax / 2;
+pVessel.profile   = 'parabolic1'; % with this, runSim.m should generate the velocity profile using the same function used for the velocity fit
 
-% Complex-plane spiral signal
-Iref_sim      = resSim.I(1,1,1,1,1,2);
-Ienc_sim      = squeeze(resSim.I(1,1,1,1,:,1));
-Ienc_norm_sim = Ienc_sim / abs(Iref_sim);
-theta_sim     = linspace(0,2*pi,360);
+% match MRI acquisition parameters
+pMri.fieldStrength   = 3;
+pMri.species         = 'phantom';
+pMri.sliceThickness  = 2.2;              % [mm]
+pMri.TR              = 75.90/(5+1)/1000; % [s]
+pMri.TE              = 9.8/1000;         % [s]
+pMri.FA              = 50;               % [deg]
+pMri.venc.method     = 'FVEmono'; % use defaults
 
+% precompute spinGrid using a dummy run
+p = runSim(pVessel,pSim,pMri);
+pSim    = p.pSim;
+pVessel = p.pVessel;
+pMri    = p.pMri;
+
+% match S to phantom data
+[spinGridFE, spinGridPE] = ndgrid(pSim.spinGrid.coorFE, pSim.spinGrid.coorPE);
+spinGridR = sqrt(spinGridFE.^2 + spinGridPE.^2);
+pVessel.S.lumen    = max(0, mag_fit(spinGridR(pVessel.mask.lumen))) ./pSim.nSpinPerVox;
+pVessel.S.surround = mean(M(maskTissueOnly))                        ./pSim.nSpinPerVox;
+pVessel.S.wall     = mean(M(maskWallOnly))                          ./pSim.nSpinPerVox;
+
+
+mag_fit
+
+figure
+imagesc(pVessel.mask.lumen)
+figure
+imagesc(spinGridR); colorbar
+figure
+imagesc(mag_fit(spinGridR))
+
+% Run simulation
+resSim = runSim(pVessel, pSim, pMri, [], false);
+
+% Display variables
+FEax_sim     = resSim.pSim.spinGrid.coorFE;   % [mm]
+PEax_sim     = resSim.pSim.spinGrid.coorPE;   % [mm]
+magMap_sim   = double(resSim.magMap);
+vMap_sim     = double(resSim.vMap);
+lumen_sim    = resSim.pVessel.mask.lumen;
+wall_sim     = resSim.pVessel.mask.wall;
+surround_sim = resSim.pVessel.mask.surround;
+theta_sim    = linspace(0, 2*pi, 360);
+
+% Complex-domain spiral: squeeze to [nVenc x 1], normalize by max magnitude
+Ienc_sim      = squeeze(resSim.I);
+Ienc_norm_sim = Ienc_sim ./ max(abs(Ienc_sim));
+
+% Plot
 fSim = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 18.5]);
 hTSim = tiledlayout(fSim,3,5,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); axSim = {};
 
 % Magnitude map
 axSim{end+1} = nexttile(hTSim);
-imagesc(axSim{end}, PEax_sim, FEax_sim, magMap_T, [0 max(magMap_T(:))]); axis image;
+imagesc(axSim{end}, PEax_sim, FEax_sim, magMap_sim, [0 max(magMap_sim(:))]); axis image;
 ylabel(colorbar('Location','westoutside'), 'MR magn. [a.u.]');
 axSim{end}.Colormap = gray; set(axSim{end},'XTick',[],'YTick',[]);
 title(axSim{end},'simulation ROI');
 
 % Velocity map
 axSim{end+1} = nexttile(hTSim);
-vLim_sim = max(abs(vMap_T(:)));
-imagesc(axSim{end}, PEax_sim, FEax_sim, vMap_T, [-vLim_sim vLim_sim]); axis image;
+vLim_sim = max(abs(vMap_sim(:)));
+imagesc(axSim{end}, PEax_sim, FEax_sim, vMap_sim, [-vLim_sim vLim_sim]); axis image;
 ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
 axSim{end}.Colormap = redblue; set(axSim{end},'XTick',[],'YTick',[]);
-title(axSim{end}, sprintf('parabolic vMean=%.1f cm/s', vMean_fit3));
+title(axSim{end}, sprintf('parabolic vMean=%.1f cm/s', vel_fit.vMax/2));
 
 % Lumen mask
 axSim{end+1} = nexttile(hTSim);
-imagesc(axSim{end}, PEax_sim, FEax_sim, single(lumen_T), [0 1]); axis image;
+imagesc(axSim{end}, PEax_sim, FEax_sim, single(lumen_sim), [0 1]); axis image;
 axSim{end}.Colormap = gray; set(axSim{end},'XTick',[],'YTick',[]);
 hold(axSim{end},'on'); plot(axSim{end}, ID/2*cos(theta_sim), ID/2*sin(theta_sim), 'm');
 title(axSim{end},'lumen mask');
 
 % Wall mask
 axSim{end+1} = nexttile(hTSim);
-imagesc(axSim{end}, PEax_sim, FEax_sim, single(wall_T), [0 1]); axis image;
+imagesc(axSim{end}, PEax_sim, FEax_sim, single(wall_sim), [0 1]); axis image;
 axSim{end}.Colormap = gray; set(axSim{end},'XTick',[],'YTick',[]);
 hold(axSim{end},'on');
 plot(axSim{end}, ID/2*cos(theta_sim),       ID/2*sin(theta_sim), 'm');
@@ -869,7 +895,7 @@ title(axSim{end},'wall mask');
 
 % Surround mask
 axSim{end+1} = nexttile(hTSim);
-imagesc(axSim{end}, PEax_sim, FEax_sim, single(surround_T), [0 1]); axis image;
+imagesc(axSim{end}, PEax_sim, FEax_sim, single(surround_sim), [0 1]); axis image;
 axSim{end}.Colormap = gray; set(axSim{end},'XTick',[],'YTick',[]);
 hold(axSim{end},'on'); plot(axSim{end}, (ID/2+2.38125)*cos(theta_sim), (ID/2+2.38125)*sin(theta_sim), 'm');
 title(axSim{end},'surround mask');
@@ -1157,10 +1183,10 @@ hold on
 hVdep = plot(res.pMri.venc.FVEvel     ,abs(fftshift(fft(squeeze(res.I))))     ,'g');
 axis tight; grid on; xlabel('velocity (cm/s)'); ylabel('velocity spectrum/histogram');
 yLim = ylim; yLim(1) = 0; ylim(yLim);
-[N,edges] = histcounts(res.vMap(res.pSim.gridVoxIdx==0),20);
+[N,edges] = histcounts(res.vMap(getVoxIdx(res.pSim.voxGrid,res.pSim.spinGrid)==0),20);
 % binWidth = mean(diff(edges));
 % edges = edges-binWidth/2; edges(end+1) = edges(end)+binWidth;
-% [N,edges] = histcounts(res.vMap(res.pSim.gridVoxIdx==0),edges);
+% [N,edges] = histcounts(res.vMap(getVoxIdx(res.pSim.voxGrid,res.pSim.spinGrid)==0),edges);
 hVhist = histogram('BinEdges',edges,'BinCounts',N/max(N)*yLim(2),'FaceColor',0.5.*[1 1 1],'EdgeColor','none');
 legend([hFlat,hVdep,hVhist],['velocity spectrum from' newline 'flat magnitude profile'],['velocity spectrum from' newline 'velocity-dependent magnitude profile'],'normalized velocity histogram','Location','northwest','box','off');
 uistack(hVhist,'bottom');
