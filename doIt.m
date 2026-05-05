@@ -914,6 +914,133 @@ end
 end
 
 
+if 1
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Plot matched simulation summary V2 -- poly4 mag profile + flat cap + vMean=4.648 cm/s
+%    Based on multiVenc/doIt_phantom03_2.m (original slide 8 source)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+load(fullfile(info.project.figures,'radialProfiles.mat'), 'vel_fit', 'mag_fit');
+
+% Set up simulation
+p = runSim;
+pSim    = p.pSim;
+pVessel = p.pVessel;
+pMri    = p.pMri;
+
+% match voxel grid to phantom data
+pSim.voxGrid.fovFE = size(data,1) * FEspacing;
+pSim.voxGrid.fovPE = size(data,2) * PEspacing;
+pSim.voxGrid.matFE = size(data,1);
+pSim.voxGrid.matPE = size(data,2);
+pSim.nSpin        = (2^10)^2;
+pSim.gridMode     = 'pseudoVoxel';
+
+% match vessel geometry — same as current
+pVessel.ID      = vel_fit.R*2;
+pVessel.WT      = OD/2-ID/2;
+pVessel.profile = 'parabolic1';
+% vMean from original doIt_phantom03_2.m (hardcoded, not from fit)
+pVessel.vMean   = 4.648; % [cm/s]
+
+% match MRI acquisition parameters
+pMri.fieldStrength   = 3;
+pMri.species         = 'phantom';
+pMri.sliceThickness  = 2.2;
+pMri.TR              = 75.90/(5+1)/1000;
+pMri.TE              = 9.8/1000;
+pMri.FA              = 50;
+pMri.venc.method     = 'FVEmono';
+
+% precompute spinGrid
+p = runSim(pVessel, pSim, pMri);
+pSim    = p.pSim;
+pVessel = p.pVessel;
+pMri    = p.pMri;
+
+% match S to phantom data — poly4 + flat cap (from doIt_phantom03_2.m lines 99-112)
+mag_fit_v2 = fit([1:5]',[1:5]','poly4');
+mag_fit_v2.p1 = -3.275935517412673e-08;
+mag_fit_v2.p2 =  1.797301928434331e-07;
+mag_fit_v2.p3 = -3.776838813872159e-07;
+mag_fit_v2.p4 =  2.753845832568102e-07;
+mag_fit_v2.p5 =  5.385039631953827e-07;
+rPeak_v2 = 5.414525403728579e-01;  % [mm] flatten for r < rPeak
+
+[spinGridFE2, spinGridPE2] = ndgrid(pSim.spinGrid.coorFE, pSim.spinGrid.coorPE);
+spinGridR2 = sqrt(spinGridFE2.^2 + spinGridPE2.^2);
+r_lumen2   = spinGridR2(pVessel.mask.lumen);
+S_lumen2   = mag_fit_v2(r_lumen2);
+S_lumen2(r_lumen2 < rPeak_v2) = mag_fit_v2(rPeak_v2);  % flat cap
+pVessel.S.lumen    = max(0, S_lumen2) ./ pSim.nSpinPerVox;
+pVessel.S.surround = mean(M(maskTissueOnly)) ./ pSim.nSpinPerVox;
+pVessel.S.wall     = mean(M(maskWallOnly))   ./ pSim.nSpinPerVox;
+
+% Run simulation
+resSim2 = runSim(pVessel, pSim, pMri, [], false);
+
+% Display variables
+FEax_sim2     = resSim2.pSim.spinGrid.coorFE;
+PEax_sim2     = resSim2.pSim.spinGrid.coorPE;
+magMap_sim2   = double(resSim2.magMap);
+vMap_sim2     = double(resSim2.vMap);
+lumen_sim2    = resSim2.pVessel.mask.lumen;
+wall_sim2     = resSim2.pVessel.mask.wall;
+surround_sim2 = resSim2.pVessel.mask.surround;
+theta_sim2    = linspace(0, 2*pi, 360);
+Ienc_sim2      = squeeze(resSim2.I);
+Ienc_norm_sim2 = Ienc_sim2 ./ max(abs(Ienc_sim2));
+
+% Plot
+fSim2 = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 18.5]);
+hTSim2 = tiledlayout(fSim2,3,5,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); axSim2 = {};
+
+axSim2{end+1} = nexttile(hTSim2);
+imagesc(axSim2{end}, PEax_sim2, FEax_sim2, magMap_sim2, [0 max(magMap_sim2(:))]); axis image;
+ylabel(colorbar('Location','westoutside'), 'MR magn. [a.u.]');
+axSim2{end}.Colormap = gray; set(axSim2{end},'XTick',[],'YTick',[]);
+title(axSim2{end},'simulation ROI');
+
+axSim2{end+1} = nexttile(hTSim2);
+vLim_sim2 = max(abs(vMap_sim2(:)));
+imagesc(axSim2{end}, PEax_sim2, FEax_sim2, vMap_sim2, [-vLim_sim2 vLim_sim2]); axis image;
+ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
+axSim2{end}.Colormap = redblue; set(axSim2{end},'XTick',[],'YTick',[]);
+title(axSim2{end}, 'parabolic vMean=4.648 cm/s');
+
+axSim2{end+1} = nexttile(hTSim2);
+imagesc(axSim2{end}, PEax_sim2, FEax_sim2, single(lumen_sim2), [0 1]); axis image;
+axSim2{end}.Colormap = gray; set(axSim2{end},'XTick',[],'YTick',[]);
+hold(axSim2{end},'on'); plot(axSim2{end}, ID/2*cos(theta_sim2), ID/2*sin(theta_sim2), 'm');
+title(axSim2{end},'lumen mask');
+
+axSim2{end+1} = nexttile(hTSim2);
+imagesc(axSim2{end}, PEax_sim2, FEax_sim2, single(wall_sim2), [0 1]); axis image;
+axSim2{end}.Colormap = gray; set(axSim2{end},'XTick',[],'YTick',[]);
+hold(axSim2{end},'on');
+plot(axSim2{end}, ID/2*cos(theta_sim2), ID/2*sin(theta_sim2), 'm');
+plot(axSim2{end}, (ID/2+2.38125)*cos(theta_sim2), (ID/2+2.38125)*sin(theta_sim2), 'm');
+title(axSim2{end},'wall mask');
+
+axSim2{end+1} = nexttile(hTSim2);
+imagesc(axSim2{end}, PEax_sim2, FEax_sim2, single(surround_sim2), [0 1]); axis image;
+axSim2{end}.Colormap = gray; set(axSim2{end},'XTick',[],'YTick',[]);
+hold(axSim2{end},'on'); plot(axSim2{end}, (ID/2+2.38125)*cos(theta_sim2), (ID/2+2.38125)*sin(theta_sim2), 'm');
+title(axSim2{end},'surround mask');
+
+axSim2{end+1} = nexttile(hTSim2, [3 3]);
+plotComplexDomain(axSim2{end}, Ienc_norm_sim2, 'tight', 'line');
+title(axSim2{end}, 'complex-domain signal (poly4+cap, vMean=4.648)');
+
+if saveThis || ~exist(fullfile(info.project.figures,'matchedSimSummaryV2.fig'),'file')
+    saveas(        fSim2, fullfile(info.project.figures,'matchedSimSummaryV2.fig'));
+    exportgraphics(fSim2, fullfile(info.project.figures,'matchedSimSummaryV2.png'));
+    exportgraphics(fSim2, fullfile(info.project.figures,'matchedSimSummaryV2.svg'));
+end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+
+
 if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
