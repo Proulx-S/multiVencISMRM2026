@@ -777,10 +777,10 @@ end
 end
 
 
-return
+% return
 
-if 0
-saveThis = 0;
+if 1
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot matched simulation summary -- same format as phantom summary but all from simulation
 %    spatial maps (rows=PE, cols=FE in runSim → transposed for display: rows=FE, cols=PE)
@@ -832,14 +832,14 @@ pVessel.S.surround = mean(M(maskTissueOnly))                        ./pSim.nSpin
 pVessel.S.wall     = mean(M(maskWallOnly))                          ./pSim.nSpinPerVox;
 
 
-mag_fit
+% mag_fit
 
-figure
-imagesc(pVessel.mask.lumen)
-figure
-imagesc(spinGridR); colorbar
-figure
-imagesc(mag_fit(spinGridR))
+% figure
+% imagesc(pVessel.mask.lumen)
+% figure
+% imagesc(spinGridR); colorbar
+% figure
+% imagesc(mag_fit(spinGridR))
 
 % Run simulation
 resSim = runSim(pVessel, pSim, pMri, [], false);
