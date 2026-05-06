@@ -9,11 +9,11 @@ r = double(r(:)); v = double(v(:));
 % Free fit
 velFit = fittype('Vmax * (1 - (r/R)^2)', 'independent', 'r', 'coefficients', {'Vmax', 'R'});
 if exist('R','var') && ~isempty(R)
-    % use R as starting point
-    velFit = fit(r, v, velFit, 'Lower', [0, 0], 'StartPoint', [max(v), R]);
+    % StartPoint order follows coeffnames alphabetical order: R, Vmax
+    velFit = fit(r, v, velFit, 'Lower', [0, 0], 'StartPoint', [R, max(v)]);
 else
-    % R estimated from the size of the ROI
-    velFit = fit(r, v, velFit, 'Lower', [0, 0], 'StartPoint', [max(v), sqrt(max(r)^2/2)/2]);
+    % R estimated from the size of the ROI; alphabetical order: R, Vmax
+    velFit = fit(r, v, velFit, 'Lower', [0, 0], 'StartPoint', [sqrt(max(r)^2/2)/2, max(v)]);
 end
 
 % Constrained radius

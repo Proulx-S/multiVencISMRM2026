@@ -222,6 +222,7 @@ FEpos  = FEpos  - com(1);
 PEgrid = PEgrid - com(2);
 PEpos  = PEpos  - com(2);
 rGrid = sqrt(PEgrid.^2+FEgrid.^2);
+pGrid = atan2(PEgrid, FEgrid);
 clear com
 
 
@@ -576,6 +577,7 @@ end
 end
 
 
+
 if 1
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -604,25 +606,29 @@ R = ID/2;
 B = abs(mean(cNoFlowSpoiled(maskBloodOnly)));
 [magSpoilFit, magSpoilFitFixR, magSpoilFitFixB, magSpoilFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlowSpoiled(maskBloodOnly)), R, B);
 
-% Fit of v(r) and m(v(r)) jointly
+% Fit of v(r) and m(v(r)) jointly — no offset (comparison baseline)
 R = ID/2;
-[velJointFit, magJoinFit] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4);
+[velJointFit_noOff, magJoinFit_noOff] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4);
+
+% Fit of v(r) and m(v(r)) jointly — free centre offset (dx,dy)
+[velJointFit, magJoinFit] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4, true, [FEgrid(maskBloodOnly), PEgrid(maskBloodOnly)]);
 
 
 f = figure;
 hT = tiledlayout(f,3,2,'TileSpacing','compact','Padding','compact'); ax = {};
 theta = linspace(0, 2*pi, 360);
+% Reference circle: fitted radius and offset centre (imagesc axes: x=PE, y=FE)
+cx = velJointFit.R * cos(theta) + velJointFit.PEoffset;
+cy = velJointFit.R * sin(theta) + velJointFit.FEoffset;
 
 %mag
 ax{end+1} = nexttile;
 imagesc(PEpos,FEpos,abs(cFlow),[0 max(abs(cFlow(maskBloodOnly)))]); axis image; colormap(ax{end},'gray'); colorbar;
-hold on
-plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
 
 ax{end+1} = nexttile;
-imagesc(PEpos,FEpos,reshape(magJoinFit(velJointFit(rGrid)),size(rGrid))); axis image; colormap(ax{end},'gray'); colorbar;
-hold on
-plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+imagesc(PEpos,FEpos,reshape(magJoinFit(velJointFit(rGrid(:),pGrid(:))),size(rGrid))); axis image; colormap(ax{end},'gray'); colorbar;
+hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
 
 cLim = get([ax{end-1:end}],'CLim'); cLim = [0 1] .*max([cLim{:}]); set([ax{end-1:end}],'CLim',cLim);
 
@@ -630,13 +636,11 @@ cLim = get([ax{end-1:end}],'CLim'); cLim = [0 1] .*max([cLim{:}]); set([ax{end-1
 %vel
 ax{end+1} = nexttile;
 imagesc(PEpos,FEpos,vFlow,[-1 1].*max(vFlow(maskBloodOnly))); axis image; colormap(ax{end},'jet'); colorbar;
-hold on
-plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
 
 ax{end+1} = nexttile;
-imagesc(PEpos,FEpos,reshape(velJointFit(rGrid),size(rGrid))); axis image; colormap(ax{end},'jet'); colorbar;
-hold on
-plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+imagesc(PEpos,FEpos,reshape(velJointFit(rGrid(:),pGrid(:)),size(rGrid))); axis image; colormap(ax{end},'jet'); colorbar;
+hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
 
 cLim = get([ax{end-1:end}],'CLim'); cLim = [-1 1] .*max(abs([cLim{:}])); set([ax{end-1:end}],'CLim',cLim);
 
@@ -650,7 +654,8 @@ plot(v,magJoinFit(v),'w-');
 grid on
 
 ax{end+1} = nexttile;
-scatter(velJointFit(rGrid(maskBloodOnly)),magJoinFit(velJointFit(rGrid(maskBloodOnly))),'MarkerFaceColor','w','MarkerEdgeColor','k')
+vBlood = velJointFit(rGrid(maskBloodOnly), pGrid(maskBloodOnly));
+scatter(vBlood, magJoinFit(vBlood), 'MarkerFaceColor','w','MarkerEdgeColor','k')
 axis square; xlabel('velocity'); ylabel('magnitude'); hold on
 plot(v,magJoinFit(v),'w-');
 grid on
@@ -668,7 +673,50 @@ if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesFits.mat'),'f
         'velFit', 'velFitFixR', ...
         'magFit', 'magFitFixR', 'magFitFixB', 'magFitFixBR', ...
         'magSpoilFit', 'magSpoilFitFixR', 'magSpoilFitFixB', 'magSpoilFitFixBR', ...
-        'velJointFit', 'magJoinFit');
+        'velJointFit', 'magJoinFit', 'velJointFit_noOff', 'magJoinFit_noOff');
+end
+
+% Comparison figure: no-offset vs free-offset joint fit
+thetaC       = linspace(0,2*pi,360);
+vel_noOff    = reshape(velJointFit_noOff(rGrid(:)),          size(rGrid));
+vel_withOff  = reshape(velJointFit(      rGrid(:),pGrid(:)), size(rGrid));
+mag_noOff    = reshape(magJoinFit_noOff( vel_noOff(:)),      size(rGrid));
+mag_withOff  = reshape(magJoinFit(       vel_withOff(:)),    size(rGrid));
+cLim_m       = [0,  max(abs(cFlow(maskBloodOnly)))];
+cLim_v       = max(abs(vFlow(maskBloodOnly))) * [-1 1];
+
+fComp  = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 36 22]);
+hTComp = tiledlayout(fComp,2,3,'TileSpacing','compact','Padding','compact'); axComp = {};
+
+axComp{end+1} = nexttile(hTComp);
+imagesc(PEpos,FEpos,abs(cFlow),cLim_m); axis image; colormap(axComp{end},'gray'); colorbar; title('measured magnitude');
+
+axComp{end+1} = nexttile(hTComp);
+imagesc(PEpos,FEpos,mag_noOff,cLim_m); axis image; colormap(axComp{end},'gray'); colorbar;
+hold on; plot(velJointFit_noOff.R*cos(thetaC), velJointFit_noOff.R*sin(thetaC),'w--','LineWidth',1);
+title(sprintf('no-offset  Vmax=%.2f  R=%.2f mm', velJointFit_noOff.Vmax, velJointFit_noOff.R));
+
+axComp{end+1} = nexttile(hTComp);
+imagesc(PEpos,FEpos,mag_withOff,cLim_m); axis image; colormap(axComp{end},'gray'); colorbar;
+hold on; plot(velJointFit.R*cos(thetaC)+velJointFit.PEoffset, velJointFit.R*sin(thetaC)+velJointFit.FEoffset,'w--','LineWidth',1);
+title(sprintf('free-offset  Vmax=%.2f  R=%.2f  FEoff=%.2f  PEoff=%.2f mm', velJointFit.Vmax, velJointFit.R, velJointFit.FEoffset, velJointFit.PEoffset));
+
+axComp{end+1} = nexttile(hTComp);
+imagesc(PEpos,FEpos,vFlow,cLim_v); axis image; colormap(axComp{end},redblue); colorbar; title('measured velocity');
+
+axComp{end+1} = nexttile(hTComp);
+imagesc(PEpos,FEpos,vel_noOff,cLim_v); axis image; colormap(axComp{end},redblue); colorbar;
+hold on; plot(velJointFit_noOff.R*cos(thetaC), velJointFit_noOff.R*sin(thetaC),'w--','LineWidth',1);
+title('no-offset velocity');
+
+axComp{end+1} = nexttile(hTComp);
+imagesc(PEpos,FEpos,vel_withOff,cLim_v); axis image; colormap(axComp{end},redblue); colorbar;
+hold on; plot(velJointFit.R*cos(thetaC)+velJointFit.PEoffset, velJointFit.R*sin(thetaC)+velJointFit.FEoffset,'w--','LineWidth',1);
+title('free-offset velocity');
+
+if saveThis
+    exportgraphics(fComp, fullfile(info.project.figures,'offsetFitComparison.png'));
+    exportgraphics(fComp, fullfile(info.project.figures,'offsetFitComparison.svg'));
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
@@ -757,8 +805,8 @@ end
 
 
 
-if 1
-saveThis = 1;
+if 0
+saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot matched simulation summary — joint velocity + magnitude fits
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
