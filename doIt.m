@@ -177,6 +177,12 @@ bestVenc = 10; % cm/s
 data = conj(data);
 dataNoFlow = conj(dataNoFlow);
 
+%Scale magnitude to a decent range
+magScaleFac = mean(abs(data(:)));
+data       = data      ./magScaleFac;
+dataNoFlow = dataNoFlow./magScaleFac;
+
+
 % % Compute PD and CD (meas by meas)
 % runList = unique(dataRun);
 % dataPD = nan(size(data));
@@ -572,52 +578,136 @@ end
 
 if 1
 saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%
+%% Radial profiles fits
+%%%%%%%%%%%%%%%%%%%%%%%
+cFlow          = mean(data(:,:,dataVenc==inf),3);
+cFlowSpoiled   = mean(data(:,:,dataVenc==min(dataVenc)),3);
+cNoFlow        = mean(dataNoFlow(:,:,dataVenc==inf),3);
+cNoFlowSpoiled = mean(dataNoFlow(:,:,dataVenc==min(dataVenc)),3);
+vFlow   = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)),vencToM1(bestVenc));
+vNoFlow = zeros(size(vFlow));
+rFlow   = rGrid;
+rNoFlow = rGrid;
+
+% Fit of v(r) velocity function of radius
+R = ID/2;
+[velFit, velFitFixR] = fitVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), R);
+
+% Fit of m(r) magnitude function of radius
+R = ID/2;
+B = abs(mean(cNoFlow(maskBloodOnly)));
+[magFit, magFitFixR, magFitFixB, magFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlow(maskBloodOnly)), R, B);
+
+% Fit of m(r) magnitude function of radius for the spoiled low-venc data
+R = ID/2;
+B = abs(mean(cNoFlowSpoiled(maskBloodOnly)));
+[magSpoilFit, magSpoilFitFixR, magSpoilFitFixB, magSpoilFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlowSpoiled(maskBloodOnly)), R, B);
+
+% Fit of v(r) and m(v(r)) jointly
+R = ID/2;
+[velJointFit, magJoinFit] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4);
+
+
+f = figure;
+hT = tiledlayout(f,3,2,'TileSpacing','compact','Padding','compact'); ax = {};
+theta = linspace(0, 2*pi, 360);
+
+%mag
+ax{end+1} = nexttile;
+imagesc(PEpos,FEpos,abs(cFlow),[0 max(abs(cFlow(maskBloodOnly)))]); axis image; colormap(ax{end},'gray'); colorbar;
+hold on
+plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+
+ax{end+1} = nexttile;
+imagesc(PEpos,FEpos,reshape(magFit(velFit(rGrid)),size(rGrid))); axis image; colormap(ax{end},'gray'); colorbar;
+hold on
+plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+
+cLim = get([ax{end-1:end}],'CLim'); cLim = [0 1] .*max([cLim{:}]); set([ax{end-1:end}],'CLim',cLim);
+
+
+%vel
+ax{end+1} = nexttile;
+imagesc(PEpos,FEpos,vFlow,[-1 1].*max(vFlow(maskBloodOnly))); axis image; colormap(ax{end},'jet'); colorbar;
+hold on
+plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+
+ax{end+1} = nexttile;
+imagesc(PEpos,FEpos,reshape(velFit(rGrid),size(rGrid))); axis image; colormap(ax{end},'jet'); colorbar;
+hold on
+plot(R*cos(theta), R*sin(theta), 'w--', 'LineWidth', 1);
+
+cLim = get([ax{end-1:end}],'CLim'); cLim = [-1 1] .*max(abs([cLim{:}])); set([ax{end-1:end}],'CLim',cLim);
+
+
+%mag vs vel
+ax{end+1} = nexttile;
+scatter(vFlow(maskBloodOnly),abs(cFlow(maskBloodOnly)),'MarkerFaceColor','w','MarkerEdgeColor','k')
+axis square; xlabel('velocity'); ylabel('magnitude'); hold on
+v = linspace(0,max(vFlow(maskBloodOnly)),100);
+plot(v,magFit(v),'w-');
+grid on
+
+ax{end+1} = nexttile;
+scatter(velFit(rGrid(maskBloodOnly)),magFit(velFit(rGrid(maskBloodOnly))),'MarkerFaceColor','w','MarkerEdgeColor','k')
+axis square; xlabel('velocity'); ylabel('magnitude'); hold on
+v = linspace(0,max(vFlow(maskBloodOnly)),100);
+plot(v,magFit(v),'w-');
+grid on
+
+xLim = get([ax{end-1:end}],'XLim'); xLim = [0 1] .*max([xLim{:}]); set([ax{end-1:end}],'XLim',xLim);
+yLim = get([ax{end-1:end}],'YLim'); yLim = [0 1] .*max([yLim{:}]); set([ax{end-1:end}],'YLim',yLim);
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+
+
+
+
+
+
+% Fit of v(r) velocity function of radius
+R = ID/2;
+[velFit, velFitFixR] = fitVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), R);
+
+curVelFit = velFit;
+curVel = nan(size(rGrid)); curVel(:) = curVelFit(rGrid); curVel(curVel<0) = 0;
+imagesc(PEpos,FEpos,curVel); clim([-1 1].*max(abs(curVel(:)))); axis image
+colorbar
+hold on
+theta = linspace(0, 2*pi, 360);
+plot(curVelFit.R * cos(theta), curVelFit.R * sin(theta), 'w--', 'LineWidth', 1);
+
+
+% Fit of m(r) magnitude function of radius
+R = ID/2;
+B = abs(mean(cNoFlow(maskBloodOnly)));
+[magFit, magFitFixR, magFitFixB, magFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlow(maskBloodOnly)), R, B)
+
+
+
+
+% Fit of m(v) magnitude function of velocity
+B = abs(mean(cNoFlow(maskBloodOnly)));
+[magFit, magFitFixR, magFitFixB, magFitFixBR] = fitMagVel(abs(cFlow(maskBloodOnly)), vFlow(maskBloodOnly),B)
+
+
+
+
+
+
+
+if 1
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom details -- radial profiles -- ISMRM2026-poster.pptx slide 9
+%% Radial profiles — magnitude fit m(r): poly4, dm/dr=0 at r=0, m=A_noFlow at r=ID/2
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-M_rad  = abs(mean(data(:,:,dataVenc==inf),3));
-M_rad2 = abs(mean(data(:,:,dataVenc==2  ),3));
-PD_rad = angle(mean(data(:,:,dataVenc==bestVenc) ./ exp(1j.*angle(mean(data(:,:,dataVenc==inf),3))), 3));
-m1best = vencToM1(bestVenc);
-velPD_rad = phase2vel(PD_rad, m1best); % [cm/s]
-% Dominant flow sign after conj() may be negative; flip so positive = into slice
-if mean(velPD_rad(maskBloodOnly)) < 0; velPD_rad = -velPD_rad; end
+M_noFlow  = abs(mean(dataNoFlow(:,:,dataVenc==inf), 3));
+A_noFlow  = mean(double(M_noFlow(maskBloodOnly(:))));
+[mag_fit, MFitLine3] = fitMagProfile(rGrid, M_rad, idxBlood, A_noFlow, ID/2, rFine3);
 
-idxBlood = maskBloodOnly;
-idxVel   = ~logical(maskWallLowMag);
-idxMag   = true(size(rGrid));
-
-% Parabolic fit to velocity vs. radius (blood-only pixels)
-rFit3  = double(rGrid(idxBlood));
-vFit3  = double(velPD_rad(idxBlood));
-rFine3 = linspace(0, max(rFit3), 100);
-ft_vel  = fittype('vMax * (1 - (x/R)^2)', 'independent', 'x', 'problem', 'R', 'coefficients', {'vMax'});
-vel_fit = fit(rFit3(:), vFit3(:), ft_vel, 'problem', {ID/2}, 'Lower', 0, 'StartPoint', max(vFit3));
-vMax_fit3  = vel_fit.vMax;
-vMean_fit3 = vMax_fit3 / 2;
-vFitLine3  = vel_fit(rFine3(:));
-
-ft_vel2  = fittype('vMax * (1 - (x/R)^2)', 'independent', 'x', 'coefficients', {'vMax', 'R'});
-vel_fit2 = fit(rFit3(:), vFit3(:), ft_vel2, 'Lower', [0, 0], 'StartPoint', [max(vFit3), ID/2]);
-vMax_fit3b  = vel_fit2.vMax;
-R_fit3b     = vel_fit2.R;
-vMean_fit3b = vMax_fit3b / 2;
-vFitLine3b  = vel_fit2(rFine3(:));
-
-fprintf('Constrained fit (R=ID/2=%.3fmm): vMax=%.3f cm/s, vMean=%.3f cm/s\n', ID/2, vMax_fit3, vMean_fit3);
-fprintf('Free fit        (R=%.3fmm):      vMax=%.3f cm/s, vMean=%.3f cm/s\n', R_fit3b, vMax_fit3b, vMean_fit3b);
-
-% % Polynomial fit to magnitude vs. radius (blood-only, linear in r^2)
-% mag_fit   = fit(double(rGrid(idxBlood(:))).^2, double(M_rad(idxBlood(:))), 'poly1');
-% MFitLine3 = mag_fit(rFine3(:).^2);
-
-% Degree-2 polynomial in r with maximum fixed at r=0: f(r) = a + b*r^2
-ft_mag  = fittype('a + b*x^2', 'independent', 'x', 'coefficients', {'a', 'b'});
-mag_fit = fit(double(rGrid(idxBlood(:))), double(M_rad(idxBlood(:))), ft_mag, ...
-    'StartPoint', [max(double(M_rad(idxBlood(:)))), -1]);
-MFitLine3 = mag_fit(rFine3(:));
-
-% Theoretical inflow enhancement: Mz as a function of velocity
+% Theoretical inflow enhancement
 p_inflow = runSim;
 p_inflow.pMri.fieldStrength = 3;
 p_inflow.pMri.species = 'phantom';
@@ -626,26 +716,12 @@ p_inflow.pMri.TR = 75.90/(5+1)/1000;
 p_inflow.pMri.TE = 9.8/1000;
 p_inflow.pMri.FA = 50;
 p_inflow = runSim([],[],p_inflow.pMri);
-
 [Mz_inflow,~,~,~,~,velInflow] = getMz_ss(p_inflow.pMri, p_inflow.pMri.relax.blood);
+Mxy_inflow = getMxy_ss(Mz_inflow, p_inflow.pMri, p_inflow.pMri.relax);
 
-theta_circ = linspace(0,2*pi,360);
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 12]);
+hT = tiledlayout(f,1,3,'TileSpacing','compact','Padding','compact'); ax = {};
 
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,2,3,'TileSpacing','compact','Padding','compact'); ax = {};
-
-% velocity vs. radial position with parabolic fit
-ax{end+1} = nexttile(hT);
-plot(rGrid(idxVel), velPD_rad(idxVel), '.', 'Color', [0.5 0.5 0.8]);
-hold on
-% plot(rFine3, vFitLine3,  '-', 'Color', [0.5 0.5 0.8], 'LineWidth', 2);
-plot(rFine3, vFitLine3b, '-', 'Color', [0.9 0.6 0.1], 'LineWidth', 2);
-xline(ID/2, 'w--'); xline(OD/2, 'w--');
-xlabel('off-center position [mm]'); ylabel('velocity (cm/s)');
-title(sprintf('velocity profile\nvMean: est=%.2f, true=%.2f cm/s\ndiam: est=%.2f, true=%.2f mm', vMean_fit3b, vMean_fit3, 2*R_fit3b, ID));
-grid on; legend('data', sprintf('free fit (R=%.2fmm)', R_fit3b), 'ID/2','OD/2','Location','north');
-
-% magnitude vs. radial position with polynomial fit
 ax{end+1} = nexttile(hT);
 plot(rGrid(idxMag), M_rad( idxMag), '.', 'Color', [0.5 0.8 0.5]);
 hold on
@@ -653,52 +729,72 @@ plot(rGrid(idxMag), M_rad2(idxMag), '.', 'Color', [0.8 0.6 0.2]);
 plot(rFine3, MFitLine3, '-', 'Color', [0.5 0.8 0.5], 'LineWidth', 2);
 xline(ID/2, 'w--'); xline(OD/2, 'w--');
 xlabel('off-center position [mm]'); ylabel('MR signal magnitude [a.u.]');
-title('magnitude profile'); grid on;
-legend('venc=inf','venc=2','polynomial fit (venc=inf)','ID/2','OD/2','Location','north');
+title('magnitude profile — m(r)'); grid on;
+legend('venc=inf','venc=2','poly4 (anchored at r=ID/2)','ID/2','OD/2','Location','north');
 
-% velocity vs. magnitude scatter + theoretical inflow enhancement
-ax{end+1} = nexttile(hT);
-% yyaxis left
-plot(velPD_rad(idxBlood), M_rad(idxBlood), '.', 'Color', [0.8 0.5 0.5]); hold on
-xlabel('velocity (cm/s)'); ylabel('MR signal magnitude [a.u.]');
-% ylim([0 inf]);
-% yyaxis right
-Mxy_inflow = getMxy_ss(Mz_inflow, p_inflow.pMri, p_inflow.pMri.relax);
-stairs(velInflow, Mxy_inflow/1000000, 'b-', 'LineWidth', 1.5);
-ylabel('M_z [a.u.] (inflow enhancement)');
-% ylim([0 1]);
-title('velocity vs. magnitude'); grid on;
-
-% velocity 2D map
-ax{end+1} = nexttile(hT);
-vLim3 = max(abs(velPD_rad(:)));
-imagesc(PEpos, FEpos, velPD_rad, [-vLim3 vLim3]); axis image;
-ax{end}.Colormap = redblue;
-hold on; plot(ID/2*cos(theta_circ), ID/2*sin(theta_circ), 'w--', 'LineWidth', 1);
-set(ax{end},'XTick',[],'YTick',[]); title(sprintf('velocity map\n(venc=%gcm/s)',bestVenc));
-ylabel(colorbar,'velocity [cm/s]');
-
-% magnitude 2D map
 ax{end+1} = nexttile(hT);
 imagesc(PEpos, FEpos, M_rad, [0 max(M_rad(:))]); axis image;
 ax{end}.Colormap = gray;
 hold on; plot(ID/2*cos(theta_circ), ID/2*sin(theta_circ), 'w--', 'LineWidth', 1);
 set(ax{end},'XTick',[],'YTick',[]); title('magnitude map (venc=inf)');
 
-% blood-only mask
 ax{end+1} = nexttile(hT);
-imagesc(PEpos, FEpos, maskBloodOnly, [0 1]); axis image;
-ax{end}.Colormap = gray;
-hold on; plot(ID/2*cos(theta_circ), ID/2*sin(theta_circ), 'm', 'LineWidth', 1.5);
-set(ax{end},'XTick',[],'YTick',[]); title('blood-only mask');
+plot(velPD_rad(idxBlood), M_rad(idxBlood), '.', 'Color', [0.8 0.5 0.5]); hold on
+stairs(velInflow, Mxy_inflow/1000000, 'b-', 'LineWidth', 1.5);
+xlabel('velocity (cm/s)'); ylabel('MR signal magnitude [a.u.]');
+title('velocity vs. magnitude + inflow theory'); grid on;
+legend('data (blood, venc=inf)', 'theory (scaled)', 'Location', 'northwest');
 
-if saveThis || ~exist(fullfile(info.project.figures,'radialProfiles.fig'),'file')
-    saveas(        f, fullfile(info.project.figures,'radialProfiles.fig'));
-    exportgraphics(f, fullfile(info.project.figures,'radialProfiles.png'));
-    exportgraphics(f, fullfile(info.project.figures,'radialProfiles.svg'));
+if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesMagR.fig'),'file')
+    saveas(        f, fullfile(info.project.figures,'radialProfilesMagR.fig'));
+    exportgraphics(f, fullfile(info.project.figures,'radialProfilesMagR.png'));
+    exportgraphics(f, fullfile(info.project.figures,'radialProfilesMagR.svg'));
 end
+if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesMagR.mat'),'file')
+    save(fullfile(info.project.figures,'radialProfilesMagR.mat'), 'mag_fit');
+end
+% Combined save for matchedSimSummary (loads vel_fit + mag_fit from this file)
 if saveThis || ~exist(fullfile(info.project.figures,'radialProfiles.mat'),'file')
     save(fullfile(info.project.figures,'radialProfiles.mat'), 'vel_fit', 'vel_fit2', 'mag_fit');
+end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+
+
+if 1
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Radial profiles — magnitude fit m(v): poly2 in velocity, intercept from no-flow data
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[mag_vel_fit, MVFitLine3v] = fitMagVelProfile(vFit3, double(M_rad(idxBlood(:))), double(M_noFlow(maskBloodOnly(:))), vel_fit(rFine3));
+
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 26 12]);
+hT = tiledlayout(f,1,2,'TileSpacing','compact','Padding','compact'); ax = {};
+
+ax{end+1} = nexttile(hT);
+vFineFit = linspace(0, max(vFit3), 100);
+plot(velPD_rad(idxBlood), M_rad(idxBlood), '.', 'Color', [0.8 0.5 0.5]); hold on
+plot(vFineFit, mag_vel_fit(vFineFit(:)), '-', 'Color', [0.3 0.5 0.9], 'LineWidth', 2);
+xlabel('velocity (cm/s)'); ylabel('MR signal magnitude [a.u.]');
+title('magnitude vs. velocity — m(v)'); grid on;
+legend('data (blood, venc=inf)', 'm(v) fit (poly2)', 'Location', 'northwest');
+
+ax{end+1} = nexttile(hT);
+plot(rGrid(idxMag), M_rad(idxMag), '.', 'Color', [0.5 0.8 0.5]); hold on
+plot(rFine3, MFitLine3,  '-', 'Color', [0.5 0.8 0.5], 'LineWidth', 2);
+plot(rFine3, MVFitLine3v,'-', 'Color', [0.3 0.5 0.9], 'LineWidth', 2);
+xline(ID/2, 'w--'); xline(OD/2, 'w--');
+xlabel('off-center position [mm]'); ylabel('MR signal magnitude [a.u.]');
+title('magnitude profile — approach comparison'); grid on;
+legend('venc=inf data','m(r) poly4','m(v(r)) poly2','ID/2','OD/2','Location','north');
+
+if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesMagV.fig'),'file')
+    saveas(        f, fullfile(info.project.figures,'radialProfilesMagV.fig'));
+    exportgraphics(f, fullfile(info.project.figures,'radialProfilesMagV.png'));
+    exportgraphics(f, fullfile(info.project.figures,'radialProfilesMagV.svg'));
+end
+if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesMagV.mat'),'file')
+    save(fullfile(info.project.figures,'radialProfilesMagV.mat'), 'mag_vel_fit');
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
