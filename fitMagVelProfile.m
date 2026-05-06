@@ -133,3 +133,37 @@ res_m   = (m       - magnitude_func_velocity(v_pred, C{:})) / sm;
 res_mNF = (mNoflow - magnitude_func_velocity(0,      C{:})) / sm;
 res = [res_v(:); res_m(:); res_mNF(:)];
 end
+
+
+%% -------------------------------------------------------------------------
+% DEVELOPMENT NOTE: asymmetric radial profile
+% Full description: asymmetricProfile.md (same directory)
+%
+% Idea: separate the velocity-peak centre from the wall-circle centre.
+%   Current:  peak at (FEoffset, PEoffset), wall circle also centred there → symmetric.
+%   Extended: wall circle centred at (FEoffset+eFE, PEoffset+ePE) → asymmetric.
+%
+% Key result — angle-dependent effective radius:
+%   Given wall offset (eFE,ePE) relative to the peak, a ray cast from the peak
+%   in direction theta_v hits the wall circle (radius R) at distance:
+%
+%     p        = eFE*cos(theta_v) + ePE*sin(theta_v)    % projection onto ray
+%     R_eff    = p + sqrt(R^2 - eFE^2 - ePE^2 + p^2)   % exact
+%     R_eff   ~= R + p                                   % first-order (|e|<<R)
+%
+%   Asymmetric model (drop-in replacement for velocity_func_radius):
+%     v(r_v, theta_v) = Vmax * max(0, 1 - (r_v/R_eff(theta_v))^2)
+%
+%   New parameters: eFE, ePE  (bounds: ±R0/4, same logic as FEoffset/PEoffset)
+%   Total free velocity params: Vmax, R, FEoffset, PEoffset, eFE, ePE  (6)
+%
+% Preferred implementation strategy (Strategy A in asymmetricProfile.md):
+%   - New helper: velocity_func_radius_asym(r, theta, Vmax, R, eFE, ePE)
+%   - New fittype ft_vel_asym with independent {'r','theta'} and 6 coefficients;
+%     FEoffset/PEoffset stored as inert coefficients (same trick as current sfit).
+%   - New residuals_joint_asym taking FEPE, computing r_v/theta_v from FEoffset/PEoffset.
+%   - Calling convention unchanged: velFit(r, theta) evaluated at offset-corrected coords.
+%
+% Caution — identifiability: eFE/ePE are weakly constrained by a symmetric blood-only
+%   mask; wall pixels or a mask penalty may be needed. See asymmetricProfile.md §Open questions.
+% -------------------------------------------------------------------------
