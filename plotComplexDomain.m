@@ -24,7 +24,7 @@ if ~isempty(venc)
     vencList = sort(unique(venc), 'descend');
     I        = arrayfun(@(v) mean(I(venc==v)), vencList);
 end
-
+clear venc
 hold(ax, 'on');
 
 x = real(I);
@@ -41,13 +41,16 @@ end
 
 % Reference circle at the magnitude of the first entry (= inf-venc reference after sort,
 % or first entry as provided by the caller when venc=[])
-rRef  = abs(I(1));
+if exist('vencList','var') && any(vencList==inf)
+    rRef = abs(mean(I(vencList==inf)));
+else
+    rRef = abs(I(1));
+end
 theta = linspace(0, 2*pi, 360);
-uistack(plot(ax, rRef*cos(theta), rRef*sin(theta), 'w--', 'LineWidth', 0.8),'bottom');
-
 axis(ax, 'image', 'tight');
 switch windowType
     case 'full'
+        uistack(plot(ax, rRef*cos(theta), rRef*sin(theta), 'w:', 'LineWidth', 0.8),'bottom');
         lim  = max(abs([xlim(ax) ylim(ax)]));
         xLim = [-lim lim];
         yLim = [-lim lim];
@@ -58,6 +61,8 @@ switch windowType
         xTick = round(xLim./dTick).*dTick; xTick = linspace(xTick(1),xTick(2),range(xTick)/dTick+1);
         yTick = round(yLim./dTick).*dTick; yTick = linspace(yTick(1),yTick(2),range(yTick)/dTick+1);
         set(ax, 'XTick',xTick, 'YTick',yTick);
+        uistack(plot(ax, rRef*cos(theta), rRef*sin(theta), 'w:', 'LineWidth', 0.8),'bottom');
+        grid(ax, 'on');
     otherwise
         error('windowType must be ''tight'' or ''full''');
 end
@@ -66,13 +71,12 @@ xLim = xLim+[-dLim dLim];
 yLim = yLim+[-dLim dLim];
 set(ax, 'XLim',xLim, 'YLim',yLim);
 
-uistack(plot(ax, xLim, [0 0], 'w', 'LineWidth', 0.5),'bottom');
-uistack(plot(ax, [0 0], yLim, 'w', 'LineWidth', 0.5),'bottom');
+uistack(plot(ax, xLim, [0 0], 'w:', 'LineWidth', 0.5),'bottom');
+uistack(plot(ax, [0 0], yLim, 'w:', 'LineWidth', 0.5),'bottom');
 
 
 ax.Color     = 'k';
 ax.GridColor = [0.5 0.5 0.5];
-grid(ax, 'on');
 xlabel(ax, 'real');
 ylabel(ax, 'imag');
 
