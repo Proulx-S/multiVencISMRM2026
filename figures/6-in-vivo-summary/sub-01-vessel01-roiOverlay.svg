@@ -35,10 +35,10 @@ font-family="Sans Serif" font-size="9" font-weight="400" font-style="normal"
 <polyline fill="none" vector-effect="none" points="303.078,109.762 318.711,109.762 318.711,125.884 303.078,125.884 303.078,109.762 " />
 </g>
 
-<g fill="#ff0000" fill-opacity="1" stroke="#ff0000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(0.75,0,0,0.75,170.535,47.2465)"
-font-family="Helvetica" font-size="21" font-weight="700" font-style="normal" 
+<g fill="#ff0000" fill-opacity="1" stroke="#ff0000" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(0.75,0,0,0.75,170.535,44.2465)"
+font-family="Helvetica" font-size="10" font-weight="700" font-style="normal" 
 >
-<text fill="#ff0000" fill-opacity="1" stroke="none" xml:space="preserve" x="0" y="0" font-family="Helvetica" font-size="21" font-weight="700" font-style="normal" 
+<text fill="#ff0000" fill-opacity="1" stroke="none" xml:space="preserve" x="0" y="0" font-family="Helvetica" font-size="10" font-weight="700" font-style="normal" 
  >vessel01</text>
 </g>
 </g>
