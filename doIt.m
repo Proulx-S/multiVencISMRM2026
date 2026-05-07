@@ -33,7 +33,7 @@ else
     if status ~= 0
       system(['sshfs takoyaki:/local/users/Proulx-S ' mountPoint ' -o follow_symlinks,reconnect,allow_other']);
     end
-    
+
     storageDrive   = '/Users/sebastienproulx/bass';
     scratchDrive   = '/Users/sebastienproulx/bass';
     databaseDrive = fullfile(mountPoint, 'db');
@@ -73,87 +73,24 @@ info.toClean = {};
 
 
 
-
-if 0
-saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot simulation summary -- velocity map, mag map and and complex-domain signal evolution, for plug flow and laminar flow (both with flat magnitude profile) -- ISMRM2026-poster.pptx slide 7
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-pSim7 = runSim; % get default parameters
-
-% Flat magnitude profile: S.lumen = constant Mxy at vMean (no velocity-dependent inflow saturation)
-Mz_flat7  = getMz_ss(pSim7.pMri, pSim7.pMri.relax.blood, pSim7.pVessel.vMean);
-Mxy_flat7 = getMxy_ss(Mz_flat7, pSim7.pMri, pSim7.pMri.relax.blood);
-
-pVesselPara7          = pSim7.pVessel;
-pVesselPara7.S.lumen  = Mxy_flat7;
-
-pVesselPlug7          = pSim7.pVessel;
-pVesselPlug7.PD       = pVesselPlug7.ID;
-pVesselPlug7.S.lumen  = Mxy_flat7;
-
-% PCmono with venc list matching in vivo data range
-pMri7 = pSim7.pMri;
-pMri7.venc.method  = 'PCmono';
-pMri7.venc.vencList = [40 20 13 10 8 7 6 5 4]';
-pMri7.venc.FVEres = 0; pMri7.venc.FVEbw = 0;
-pMri7.venc.FVEvel = []; pMri7.venc.vencMin = []; pMri7.venc.vencMax = [];
-
-% Run simulations (light=false to retain magMap/vMap)
-resPara7 = runSim(pVesselPara7, pSim7.pSim, pMri7, [], false);
-resPlug7 = runSim(pVesselPlug7, pSim7.pSim, pMri7, [], false);
-
-% Build multi-venc signal arrays for plotMultiVenc
-% res.I dims: [1 1 1 1 nVenc 2] = [FE PE SL t M1 M1ref]
-% col 1 = velocity-encoded, col 2 = M1=0 reference (real after phase subtraction)
-vencListSim7 = pMri7.venc.vencList;
-resListSim7  = {resPlug7, resPara7};
-flowNamesSim7 = {'plug flow','laminar flow'};
-IplotSim7    = cell(1,2);
-vPlotSim7    = cell(1,2);
-for flowIdx = 1:2
-    r     = resListSim7{flowIdx};
-    Iref  = r.I(1,1,1,1,1,2);
-    Ienc  = squeeze(r.I(1,1,1,1,:,1));
-    IplotSim7{flowIdx} = [Iref; Ienc(:)];
-    vPlotSim7{flowIdx} = [inf;  vencListSim7];
-end
-
-% Figure: 2 rows (plug | laminar) x 3 cols (magMap | vMap | complex-plane spiral)
-fSim7 = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 22]);
-hTSim7 = tiledlayout(fSim7,2,3,'TileSpacing','compact','Padding','compact'); axSim7 = {};
-for rowIdx = 1:2
-    r_ = resListSim7{rowIdx};
-    axSim7{end+1} = nexttile(hTSim7);
-    imagesc(r_.magMap); axis image;
-    axSim7{end}.Colormap = gray;
-    axSim7{end}.CLim = [0 max(r_.magMap(:))*1.1];
-    set(axSim7{end},'XTick',[],'YTick',[]);
-    title(axSim7{end},{flowNamesSim7{rowIdx},'magnitude map'});
-    axSim7{end+1} = nexttile(hTSim7);
-    vLim7 = max(abs(r_.vMap(:)))*1.1;
-    imagesc(r_.vMap,[-vLim7 vLim7]); axis image;
-    axSim7{end}.Colormap = redblue;
-    set(axSim7{end},'XTick',[],'YTick',[]);
-    ylabel(colorbar,'velocity (cm/s)','FontSize',8);
-    title(axSim7{end},{flowNamesSim7{rowIdx},'velocity map'});
-    axSim7{end+1} = nexttile(hTSim7);
-    I_s7    = IplotSim7{rowIdx};
-    v_s7    = vPlotSim7{rowIdx};
-    Mnorm_s7 = abs(mean(I_s7(v_s7==inf)));
-    plotComplexDomain(axSim7{end}, I_s7/Mnorm_s7, [], 'tight', 'line');
-    title(axSim7{end},{flowNamesSim7{rowIdx},'complex-domain signal'});
-end
-if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
-if saveThis || ~exist(fullfile(info.project.figures,'simSummary.fig'),'file')
-    saveas(        fSim7, fullfile(info.project.figures,'simSummary.fig'));
-    exportgraphics(fSim7, fullfile(info.project.figures,'simSummary.png'));
-    exportgraphics(fSim7, fullfile(info.project.figures,'simSummary.svg'));
-end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if 1
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 1 - motivation and goal
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% No MATLAB output — poster section only.
+%% %%%%%%%%%%%%%%%%%%%%
 end
 
 
+
+
+if 1
+%%%%%%%%%%%%%%%%%%%%%%%
+%% 2 - hamilton context
+%%%%%%%%%%%%%%%%%%%%%%%
+% No MATLAB output — poster section only.
+%% %%%%%%%%%%%%%%%%%%%%%
+end
 
 
 forceThis = 1;
@@ -204,7 +141,7 @@ dPE = abs(PEgrid);
 % farthest corner of each pixel from the center
 d_far  = sqrt((dFE + FEspacing/2).^2 + (dPE + PEspacing/2).^2);
 % nearest point of each pixel to the center
-d_near = sqrt(max(0, dFE - FEspacing/2).^2 + max(0, dPE - PEspacing/2).^2);                                                                   
+d_near = sqrt(max(0, dFE - FEspacing/2).^2 + max(0, dPE - PEspacing/2).^2);
 
 maskBloodOnly    = d_far  < ID/2;              % pixel entirely inside inner circle
 maskWallOnly     = d_near > ID/2 & d_far < OD/2; % pixel entirely within wall annulus
@@ -212,352 +149,105 @@ maskNonBloodOnly = d_near > ID/2;
 maskTissueOnly   = d_near > OD/2;              % pixel entirely outside outer circle
 maskWallLowMag   = M<min(M(maskTissueOnly));          % low magnitude pixels
 
-theta = linspace(0, 2*pi, 360);                                                                                                               
+theta = linspace(0, 2*pi, 360);
 
 clear dFE dPE d_far d_near M com total
 %% %%%%%%%%%%%%%%%%%
 
 
 
-if 0
+if 1
 saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom details -- all maps and masks with and without flow -- ISMRM2026-poster.pptx slide 8 and 9
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Mag flow on
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); M = {};
-cLim = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    M{end+1} = abs(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
-    imagesc(ax{end},PEpos,FEpos,M{end}); axis image
-    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        ylabel(colorbar(ax{end},'Location','westoutside'), 'MR magn. [a.u.]');
-    end
-    ax{end}.Colormap = gray;
-    cLim{vencIdx} = clim(ax{end});
-end
-cLim = [0 max(max([M{:}]))];
-set([ax{:}],'CLim',cLim);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 3 - education simulations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sec3fig = fullfile(info.project.figures, '3-education-simulations');
+if ~exist(sec3fig,'dir'); mkdir(sec3fig); end
+pEdu = runSim; % get default parameters
 
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
 
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
+% Flat magnitude profile: S.lumen = constant Mxy at vMean (no velocity-dependent inflow saturation)
+Mz_flat  = getMz_ss(pEdu.pMri, pEdu.pMri.relax.blood, pEdu.pVessel.vMean);
+Mxy_flat = getMxy_ss(Mz_flat, pEdu.pMri, pEdu.pMri.relax.blood);
 
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'magFlowOn.fig'),'file')
-    if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
-    saveas(        f      , fullfile(info.project.figures,'magFlowOn.fig'       ));
-    exportgraphics(f      , fullfile(info.project.figures,'magFlowOn.png'       ));
-    exportgraphics(f      , fullfile(info.project.figures,'magFlowOn.svg'       ));
+pVesselPara          = pEdu.pVessel;
+pVesselPara.S.lumen  = Mxy_flat;
+
+pVesselPlug          = pEdu.pVessel;
+pVesselPlug.PD       = pVesselPlug.ID;
+pVesselPlug.S.lumen  = Mxy_flat;
+
+% PCmono with venc list matching in vivo data range
+pMri = pEdu.pMri;
+pMri.venc.method  = 'PCmono';
+
+% Run simulations (light=false to retain magMap/vMap)
+resPara = runSim(pVesselPara, pEdu.pSim, pMri, [], false);
+resPlug = runSim(pVesselPlug, pEdu.pSim, pMri, [], false);
+
+% Build multi-venc signal arrays for plotMultiVenc
+% res.I dims: [1 1 1 1 nVenc 2] = [FE PE SL t M1 M1ref]
+% col 1 = velocity-encoded, col 2 = M1=0 reference (real after phase subtraction)
+vencList = pMri.venc.vencList;
+resList  = {resPlug, resPara};
+flowNames = {'plug flow','laminar flow'};
+Iplot    = cell(1,2);
+vPlot    = cell(1,2);
+for flowIdx = 1:2
+    r     = resList{flowIdx};
+    Iref  = r.I(1,1,1,1,1,2);
+    Ienc  = squeeze(r.I(1,1,1,1,:,1));
+    Iplot{flowIdx} = [Iref; Ienc(:)];
+    vPlot{flowIdx} = [inf;  vencList];
 end
 
-
-
-% Mag flow off
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); M = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    M{end+1} = abs(mean(dataNoFlow(:,:,dataVenc==vencList(vencIdx)),3));
-    imagesc(ax{end},PEpos,FEpos,M{end}); axis image
-    title(ax{end},['flow off; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        ylabel(colorbar(ax{end},'Location','westoutside'), 'MR magn. [a.u.]');
-    end
-    ax{end}.Colormap = gray;
+% Figure: 2 rows (plug | laminar) x 3 cols (magMap | vMap | complex-plane spiral)
+fSim = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 22]);
+hTSim = tiledlayout(fSim,2,3,'TileSpacing','compact','Padding','compact'); axSim = {};
+for rowIdx = 1:2
+    r_ = resList{rowIdx};
+    axSim{end+1} = nexttile(hTSim);
+    imagesc(r_.magMap); axis image;
+    axSim{end}.Colormap = gray;
+    axSim{end}.CLim = [0 max(r_.magMap(:))*1.1];
+    set(axSim{end},'XTick',[],'YTick',[]);
+    title(axSim{end},{flowNames{rowIdx},'magnitude map'});
+    axSim{end+1} = nexttile(hTSim);
+    vLim = max(abs(r_.vMap(:)))*1.1;
+    imagesc(r_.vMap,[-vLim vLim]); axis image;
+    axSim{end}.Colormap = redblue;
+    set(axSim{end},'XTick',[],'YTick',[]);
+    ylabel(colorbar,'velocity (cm/s)','FontSize',8);
+    title(axSim{end},{flowNames{rowIdx},'velocity map'});
+    axSim{end+1} = nexttile(hTSim);
+    I_s    = Iplot{rowIdx};
+    v_s    = vPlot{rowIdx};
+    Mnorm = abs(mean(I_s(v_s==inf)));
+    plotComplexDomain(axSim{end}, I_s/Mnorm, [], 'tight', 'line');
+    title(axSim{end},{flowNames{rowIdx},'complex-domain signal'});
 end
-set([ax{:}],'CLim',cLim);
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-    
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'magFlowOff.fig'),'file')
-    saveas(        f      , fullfile(info.project.figures,'magFlowOff.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'magFlowOff.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'magFlowOff.svg'));
+if saveThis || ~exist(fullfile(sec3fig,'simSummary.fig'),'file')
+    saveas(        fSim, fullfile(sec3fig,'simSummary.fig'));
+    exportgraphics(fSim, fullfile(sec3fig,'simSummary.png'));
+    exportgraphics(fSim, fullfile(sec3fig,'simSummary.svg'));
 end
-
-
-% Phase flow on
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); P = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    P{end+1} = angle(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
-    imagesc(ax{end},PEpos,FEpos,P{end},[-pi pi]); axis image
-    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        cb = colorbar(ax{end},'Location','westoutside');
-        ylabel(cb, 'PD [rad]');
-    end
-    ax{end}.Colormap = redblue;
-    cb.Ticks = -pi:pi/2:pi;
-    cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'}; 
-end
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'phaseFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.figures,'phaseFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOn.svg'));
-end
-
-
-
-% Phase flow off
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); P = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    P{end+1} = angle(mean(dataNoFlow(:,:,dataVenc==vencList(vencIdx)),3));
-    imagesc(ax{end},PEpos,FEpos,P{end},[-pi pi]); axis image
-    title(ax{end},['flow off; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        cb = colorbar(ax{end},'Location','westoutside');
-        ylabel(cb, 'PD [rad]');
-    end
-    ax{end}.Colormap = redblue;
-    cb.Ticks = -pi:pi/2:pi;
-    cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'}; 
-end
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'phaseFlowOff.fig'),'file')
-    saveas(        f      , fullfile(info.project.figures,'phaseFlowOff.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOff.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'phaseFlowOff.svg'));
+%% %%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 
 
 
-% CDvel flow on
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); PHI = {}; CDvel = {};
-cLim = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    % P{end+1} = angle(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
-    CD = mean(data(:,:,dataVenc==vencList(vencIdx)),3) - mean(data(:,:,dataVenc==inf),3);
-    [CDvel{end+1},PHI{end+1}] = getPlugFlowEstimates(vencList(vencIdx),CD,[],[],[],0);
-    CDvel{end}(maskWallLowMag | rGrid>(ID/2+OD/2)./2) = nan;
-    
-    
-    % imagesc(ax{end},PEpos,FEpos,PHI{end},[-pi pi]); axis image
-    imagesc(ax{end},PEpos,FEpos,CDvel{end}); axis image
-    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        cb = colorbar(ax{end},'Location','westoutside');
-        % ylabel(cb, 'phi [rad]');
-        ylabel(cb, 'velocity [cm/s]');
-    end
-    ax{end}.Colormap = redblue;
-    % cb.Ticks = -pi:pi/2:pi;
-    % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'}; 
-    cLim{vencIdx} = clim(ax{end});
-end
-% cLim = abs([CDvel{:}]); cLim = [-1 1].*max((tmp(cLim~=inf)));
-set([ax{:}],'CLim',[-9 9]);
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'CDvelFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.figures,'CDvelFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'CDvelFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'CDvelFlowOn.svg'));
-end
 
 
 
-% PDvel flow on
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); PDvel = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    % P{end+1} = angle(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
-    PD = angle(mean(  data(:,:,dataVenc==vencList(vencIdx)) ./ exp(1j.*angle(mean(data(:,:,dataVenc==inf),3)))  ,3));
-    PDvel{end+1} = phase2vel(PD,vencToM1(vencList(vencIdx)));
-    imagesc(ax{end},PEpos,FEpos,PDvel{end}); axis image
-    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        cb = colorbar(ax{end},'Location','westoutside');
-        ylabel(cb, 'PD velocity [cm/s]');
-    end
-    ax{end}.Colormap = redblue;
-    % cb.Ticks = -pi:pi/2:pi;
-    % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'}; 
-end
-set([ax{:}],'CLim',[-1 1].*9);
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'PDvelFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.figures,'PDvelFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'PDvelFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'PDvelFlowOn.svg'));
-end
-
-
-
-
-% Pvel flow on
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
-hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
-vencList = sort(unique(dataVenc),'descend'); Pvel = {};
-for vencIdx = 1:size(vencList,1)
-    ax{end+1} = nexttile;
-    P = angle(mean(  data(:,:,dataVenc==vencList(vencIdx))  ,3));
-    Pvel{end+1} = phase2vel(P,vencToM1(vencList(vencIdx)));
-    imagesc(ax{end},PEpos,FEpos,Pvel{end}); axis image
-    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
-    set(ax{end},'XTick',[],'YTick',[]);
-    if vencIdx<5
-        cb = colorbar(ax{end},'Location','westoutside');
-        ylabel(cb, 'PD velocity [cm/s]');
-    end
-    ax{end}.Colormap = redblue;
-    % cb.Ticks = -pi:pi/2:pi;
-    % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'}; 
-end
-set([ax{:}],'CLim',[-1 1].*9);
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
-ax{end}.Colormap = gray;
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-
-%save
-if saveThis || ~exist(fullfile(info.project.figures,'PvelFlowOn.fig'),'file')
-    saveas(        f      , fullfile(info.project.figures,'PvelFlowOn.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'PvelFlowOn.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'PvelFlowOn.svg'));
-end
-
-
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
-
-
-
-if 0
+if 1
 saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%
-%% Radial profiles fits
-%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 5 - radial profiles and fits
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sec5fig = fullfile(info.project.figures, '5-radial-profiles-and-fits');
+if ~exist(sec5fig,'dir'); mkdir(sec5fig); end
+
 cFlow          = mean(data(:,:,dataVenc==inf),3);
 cFlowSpoiled   = mean(data(:,:,dataVenc==min(dataVenc)),3);
 cNoFlow        = mean(dataNoFlow(:,:,dataVenc==inf),3);
@@ -707,13 +397,13 @@ ylabel('velocity [cm/s]')
 
 
 
-if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesFits.fig'),'file')
-    saveas(        f, fullfile(info.project.figures,'radialProfilesFits.fig'));
-    exportgraphics(f, fullfile(info.project.figures,'radialProfilesFits.png'));
-    exportgraphics(f, fullfile(info.project.figures,'radialProfilesFits.svg'));
+if saveThis || ~exist(fullfile(sec5fig,'radialProfilesFits.fig'),'file')
+    saveas(        f, fullfile(sec5fig,'radialProfilesFits.fig'));
+    exportgraphics(f, fullfile(sec5fig,'radialProfilesFits.png'));
+    exportgraphics(f, fullfile(sec5fig,'radialProfilesFits.svg'));
 end
-if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesFits.mat'),'file')
-    save(fullfile(info.project.figures,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
+if saveThis || ~exist(fullfile(sec5fig,'radialProfilesFits.mat'),'file')
+    save(fullfile(sec5fig,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
 end
 
 % % Comparison figure: no-offset vs free-offset joint fit (requires velJointFit_noOff)
@@ -723,23 +413,24 @@ end
 % mag_noOff    = reshape(magJoinFit_noOff( vel_noOff(:)),      size(rGrid));
 % mag_withOff  = reshape(magJoinFit(       vel_withOff(:)),    size(rGrid));
 % ... (see git history for full comparison figure code)
-%% %%%%%%%%%%%%%%%%%%%%
-end
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end % section 5
 
 
 
 
-if 0
+if 1
 saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom + matched simulation combined summary — ISMRM2026-poster.pptx slide 8
-%  Layout: 2×5 columnmajor — col 1: phantom | col 2: simulation | cols 3-5: complex domain
-%  Complex-domain plot: phantom = dot markers, matched simulation = line
-%  Companion: phantomSimMasksSummary (same section, generated right after)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 4 - phantom and matched simulation summary
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sec4fig = fullfile(info.project.figures, '4-phantom-and-matched-simulation-summary');
+if ~exist(sec4fig,'dir'); mkdir(sec4fig); end
+sec5fig = fullfile(info.project.figures, '5-radial-profiles-and-fits');
 
 % --- Load joint fits ---
-load(fullfile(info.project.figures,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
+load(fullfile(sec5fig,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
 
 % --- Simulation: setup matched to joint fit ---
 p       = runSim;
@@ -846,10 +537,10 @@ hold(axComb{end}, 'off');
 legend(axComb{end}, {'phantom','simulation'}, 'Location','best', 'TextColor','w', 'Color','k');
 title(axComb{end}, 'complex-domain ROI signal');
 
-if saveThis || ~exist(fullfile(info.project.figures,'phantomSimCombinedSummary.fig'),'file')
-    saveas(        fComb, fullfile(info.project.figures,'phantomSimCombinedSummary.fig'));
-    exportgraphics(fComb, fullfile(info.project.figures,'phantomSimCombinedSummary.png'));
-    exportgraphics(fComb, fullfile(info.project.figures,'phantomSimCombinedSummary.svg'));
+if saveThis || ~exist(fullfile(sec4fig,'phantomSimCombinedSummary.fig'),'file')
+    saveas(        fComb, fullfile(sec4fig,'phantomSimCombinedSummary.fig'));
+    exportgraphics(fComb, fullfile(sec4fig,'phantomSimCombinedSummary.png'));
+    exportgraphics(fComb, fullfile(sec4fig,'phantomSimCombinedSummary.svg'));
 end
 
 %
@@ -938,17 +629,17 @@ for k = 2:5; set(axMask{k}, 'XLim',phXLim, 'YLim',phYLim); end
 simXLim = axMask{6}.XLim; simYLim = axMask{6}.YLim;
 for k = 7:10; set(axMask{k}, 'XLim',simXLim, 'YLim',simYLim); end
 
-if saveThis || ~exist(fullfile(info.project.figures,'phantomSimMasksSummary.fig'),'file')
-    saveas(        fMask, fullfile(info.project.figures,'phantomSimMasksSummary.fig'));
-    exportgraphics(fMask, fullfile(info.project.figures,'phantomSimMasksSummary.png'));
-    exportgraphics(fMask, fullfile(info.project.figures,'phantomSimMasksSummary.svg'));
+if saveThis || ~exist(fullfile(sec4fig,'phantomSimMasksSummary.fig'),'file')
+    saveas(        fMask, fullfile(sec4fig,'phantomSimMasksSummary.fig'));
+    exportgraphics(fMask, fullfile(sec4fig,'phantomSimMasksSummary.png'));
+    exportgraphics(fMask, fullfile(sec4fig,'phantomSimMasksSummary.svg'));
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end % section 4
 
 
 
-if 1
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Load in vivo data -- sub-01 and sub-02
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -977,16 +668,20 @@ for s = 1:2
     subFile = fullfile(inVivoScratch, [inVivoSubNames{s} '.mat']);
     inVivoSubData{s} = load(subFile, 'img', 'imgInfo', 'refImgAv');
 end
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 
 if 1
 saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot in vivo summary -- sub-01 vessel-01, reference mag, velocity map, complex-domain signal
-%    on the model of phantom summary -- ISMRM2026-poster.pptx slide 10
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%
+%% 6 - in vivo summary
+%%%%%%%%%%%%%%%%%%%%%%
+sec6fig = fullfile(info.project.figures, '6-in-vivo-summary');
+if ~exist(sec6fig,'dir'); mkdir(sec6fig); end
+
+% Choose a subject and vessel
 s = 1; roiIdx = 1;
 img      = inVivoSubData{s}.img;
 imgInfo  = inVivoSubData{s}.imgInfo;
@@ -1018,10 +713,10 @@ set(axRoi,'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1
 axRoi.XAxis.Visible = 'off'; axRoi.YAxis.Visible = 'off';
 axRoi.CLim = [0, 0.5*max(hIm_roi.CData(:))];
 figName_roi = [subName '-vessel01-roiOverlay'];
-if saveThis || ~exist(fullfile(info.project.figures,[figName_roi '.png']),'file')
+if saveThis || ~exist(fullfile(sec6fig,[figName_roi '.png']),'file')
     drawnow;
-    exportgraphics(hFroi, fullfile(info.project.figures,[figName_roi '.png']));
-    exportgraphics(hFroi, fullfile(info.project.figures,[figName_roi '.svg']));
+    exportgraphics(hFroi, fullfile(sec6fig,[figName_roi '.png']));
+    exportgraphics(hFroi, fullfile(sec6fig,[figName_roi '.svg']));
 end
 close(hFroi);
 
@@ -1076,23 +771,432 @@ plotComplexDomain(ax_ivs{end}, trjIV(:), [], 'tight', 'markers');
 
 % Save
 figName_ivs = [subName '-vessel01-summary'];
-if saveThis || ~exist(fullfile(info.project.figures,[figName_ivs '.fig']),'file')
-    saveas(        f_ivs, fullfile(info.project.figures,[figName_ivs '.fig']));
-    exportgraphics(f_ivs, fullfile(info.project.figures,[figName_ivs '.png']));
-    exportgraphics(f_ivs, fullfile(info.project.figures,[figName_ivs '.svg']));
-end
-%% %%%%%%%%%%%%%%%%%%%%
+if saveThis || ~exist(fullfile(sec6fig,[figName_ivs '.fig']),'file')
+    saveas(        f_ivs, fullfile(sec6fig,[figName_ivs '.fig']));
+    exportgraphics(f_ivs, fullfile(sec6fig,[figName_ivs '.png']));
+    exportgraphics(f_ivs, fullfile(sec6fig,[figName_ivs '.svg']));
 end
 
 
 
-if 0
+%% %%%%%%%%%%%%%%%%%%%
+end % section 6
+
+
+
+
+if 1
+%%%%%%%%%%%%%%%%%%
+%% 7 - conclusion
+%%%%%%%%%%%%%%%%%%
+% No MATLAB output — poster section only.
+%% %%%%%%%%%%%%
+end
+
+
+
+
+if 1
 saveThis = 1;
-%%%%%%%%%%%%%%%
-%% Plot in vivo -- reference mag, velocity map and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 10 (sub-01) and 11 (sub-02)
-%%%%%%%%%%%%%%%
-if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
+%%%%%%%%%%
+%% 8 - FVE
+%%%%%%%%%%%%
+sec8fig = fullfile(info.project.figures, '8-extra');
+if ~exist(sec8fig,'dir'); mkdir(sec8fig); end
+p = runSim;
+tmp = runSim(p.pVessel,p.pSim,p.pMri);
+p.pVessel.vMean = tmp.pMri.vCrit/2*1.5;
+p.pMri.FA = 90;
+p.pMri.venc.method = 'FVEmono';
+p.pMri.venc.FVEbw = p.pVessel.vMean*4;
+p.pMri.venc.FVEres = p.pMri.venc.FVEbw./200;
+p.pSim.nSpin = (2^10+1)^2;
+res      = runSim(p.pVessel,p.pSim,p.pMri,[],0);
+% p.pMri.sliceThickness = inf;
+Mz  = getMz_ss(p.pMri,p.pMri.relax.blood,p.pVessel.vMean);
+Mxy = getMxy_ss(Mz,p.pMri,p.pMri.relax.blood);
+p.pVessel.S.lumen = Mxy;
+resSatin = runSim(p.pVessel,p.pSim,p.pMri);
 
+fVelSpec = figure;
+hFlat = plot(resSatin.pMri.venc.FVEvel,abs(fftshift(fft(squeeze(resSatin.I)))),'w');
+hold on
+hVdep = plot(res.pMri.venc.FVEvel     ,abs(fftshift(fft(squeeze(res.I))))     ,'g');
+axis tight; grid on; xlabel('velocity (cm/s)'); ylabel('velocity spectrum/histogram');
+yLim = ylim; yLim(1) = 0; ylim(yLim);
+[N,edges] = histcounts(res.vMap(getVoxIdx(res.pSim.voxGrid,res.pSim.spinGrid)==0),20);
+hVhist = histogram('BinEdges',edges,'BinCounts',N/max(N)*yLim(2),'FaceColor',0.5.*[1 1 1],'EdgeColor','none');
+legend([hFlat,hVdep,hVhist],['velocity spectrum from' newline 'flat magnitude profile'],['velocity spectrum from' newline 'velocity-dependent magnitude profile'],'normalized velocity histogram','Location','northwest','box','off');
+uistack(hVhist,'bottom');
+
+fVelSpecInflow = figure;
+% inflowVel = linspace(0,p.pVessel.vMean*3,2^10);
+inflowVel = linspace(0,6,2^10);
+[inflowMz,~,~,~,~,inflowVel] = getMz_ss(p.pMri,p.pMri.relax.blood,inflowVel);
+% inflowMxy = getMxy_ss(inflowMz,p.pMri,p.pMri.relax.blood);
+hStairs = stairs(inflowVel,inflowMz,'g');
+axis tight square; grid on; xlabel('spin velocity (cm/s)'); ylabel('M_z');
+ylim([0 1])
+
+if saveThis || ~exist(fullfile(sec8fig,'FVEvelSpec.fig'),'file') || ~exist(fullfile(sec8fig,'FVEvelSpec_inflow.fig'),'file')
+    saveas(        fVelSpec      , fullfile(sec8fig,'FVEvelSpec.fig'       ));
+    exportgraphics(fVelSpec      , fullfile(sec8fig,'FVEvelSpec.png'       ));
+    exportgraphics(fVelSpec      , fullfile(sec8fig,'FVEvelSpec.svg'       ));
+    saveas(        fVelSpecInflow, fullfile(sec8fig,'FVEvelSpec_inflow.fig'));
+    exportgraphics(fVelSpecInflow, fullfile(sec8fig,'FVEvelSpec_inflow.png'));
+    exportgraphics(fVelSpecInflow, fullfile(sec8fig,'FVEvelSpec_inflow.svg'));
+end
+% FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
+fVelSpec;
+% Here the weighting effect was maximized using a 90 flip angle for a linear magnitude function of velocity
+fVelSpecInflow;
+%% %%%%%%%
+end % section 8
+
+
+
+
+if 1
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 9 - Phantom details -- all maps and masks with and without flow
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sec9fig = fullfile(info.project.figures, '9-phantom-details');
+if ~exist(sec9fig,'dir'); mkdir(sec9fig); end
+% Mag flow on
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); M = {};
+cLim = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    M{end+1} = abs(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
+    imagesc(ax{end},PEpos,FEpos,M{end}); axis image
+    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        ylabel(colorbar(ax{end},'Location','westoutside'), 'MR magn. [a.u.]');
+    end
+    ax{end}.Colormap = gray;
+    cLim{vencIdx} = clim(ax{end});
+end
+cLim = [0 max(max([M{:}]))];
+set([ax{:}],'CLim',cLim);
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'magFlowOn.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'magFlowOn.fig'       ));
+    exportgraphics(f      , fullfile(sec9fig,'magFlowOn.png'       ));
+    exportgraphics(f      , fullfile(sec9fig,'magFlowOn.svg'       ));
+end
+
+
+
+% Mag flow off
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); M = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    M{end+1} = abs(mean(dataNoFlow(:,:,dataVenc==vencList(vencIdx)),3));
+    imagesc(ax{end},PEpos,FEpos,M{end}); axis image
+    title(ax{end},['flow off; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        ylabel(colorbar(ax{end},'Location','westoutside'), 'MR magn. [a.u.]');
+    end
+    ax{end}.Colormap = gray;
+end
+set([ax{:}],'CLim',cLim);
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'magFlowOff.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'magFlowOff.fig'));
+    exportgraphics(f      , fullfile(sec9fig,'magFlowOff.png'));
+    exportgraphics(f      , fullfile(sec9fig,'magFlowOff.svg'));
+end
+
+
+% Phase flow on
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); P = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    P{end+1} = angle(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
+    imagesc(ax{end},PEpos,FEpos,P{end},[-pi pi]); axis image
+    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        cb = colorbar(ax{end},'Location','westoutside');
+        ylabel(cb, 'PD [rad]');
+    end
+    ax{end}.Colormap = redblue;
+    cb.Ticks = -pi:pi/2:pi;
+    cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
+end
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'phaseFlowOn.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'phaseFlowOn.fig'));
+    exportgraphics(f      , fullfile(sec9fig,'phaseFlowOn.png'));
+    exportgraphics(f      , fullfile(sec9fig,'phaseFlowOn.svg'));
+end
+
+
+
+% Phase flow off
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); P = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    P{end+1} = angle(mean(dataNoFlow(:,:,dataVenc==vencList(vencIdx)),3));
+    imagesc(ax{end},PEpos,FEpos,P{end},[-pi pi]); axis image
+    title(ax{end},['flow off; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        cb = colorbar(ax{end},'Location','westoutside');
+        ylabel(cb, 'PD [rad]');
+    end
+    ax{end}.Colormap = redblue;
+    cb.Ticks = -pi:pi/2:pi;
+    cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
+end
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'phaseFlowOff.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'phaseFlowOff.fig'));
+    exportgraphics(f      , fullfile(sec9fig,'phaseFlowOff.png'));
+    exportgraphics(f      , fullfile(sec9fig,'phaseFlowOff.svg'));
+end
+
+
+
+
+% CDvel flow on
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); PHI = {}; CDvel = {};
+cLim = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    % P{end+1} = angle(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
+    CD = mean(data(:,:,dataVenc==vencList(vencIdx)),3) - mean(data(:,:,dataVenc==inf),3);
+    [CDvel{end+1},PHI{end+1}] = getPlugFlowEstimates(vencList(vencIdx),CD,[],[],[],0);
+    CDvel{end}(maskWallLowMag | rGrid>(ID/2+OD/2)./2) = nan;
+
+
+    % imagesc(ax{end},PEpos,FEpos,PHI{end},[-pi pi]); axis image
+    imagesc(ax{end},PEpos,FEpos,CDvel{end}); axis image
+    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        cb = colorbar(ax{end},'Location','westoutside');
+        % ylabel(cb, 'phi [rad]');
+        ylabel(cb, 'velocity [cm/s]');
+    end
+    ax{end}.Colormap = redblue;
+    % cb.Ticks = -pi:pi/2:pi;
+    % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
+    cLim{vencIdx} = clim(ax{end});
+end
+% cLim = abs([CDvel{:}]); cLim = [-1 1].*max((tmp(cLim~=inf)));
+set([ax{:}],'CLim',[-9 9]);
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'CDvelFlowOn.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'CDvelFlowOn.fig'));
+    exportgraphics(f      , fullfile(sec9fig,'CDvelFlowOn.png'));
+    exportgraphics(f      , fullfile(sec9fig,'CDvelFlowOn.svg'));
+end
+
+
+
+% PDvel flow on
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); PDvel = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    % P{end+1} = angle(mean(data(:,:,dataVenc==vencList(vencIdx)),3));
+    PD = angle(mean(  data(:,:,dataVenc==vencList(vencIdx)) ./ exp(1j.*angle(mean(data(:,:,dataVenc==inf),3)))  ,3));
+    PDvel{end+1} = phase2vel(PD,vencToM1(vencList(vencIdx)));
+    imagesc(ax{end},PEpos,FEpos,PDvel{end}); axis image
+    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        cb = colorbar(ax{end},'Location','westoutside');
+        ylabel(cb, 'PD velocity [cm/s]');
+    end
+    ax{end}.Colormap = redblue;
+    % cb.Ticks = -pi:pi/2:pi;
+    % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
+end
+set([ax{:}],'CLim',[-1 1].*9);
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'PDvelFlowOn.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'PDvelFlowOn.fig'));
+    exportgraphics(f      , fullfile(sec9fig,'PDvelFlowOn.png'));
+    exportgraphics(f      , fullfile(sec9fig,'PDvelFlowOn.svg'));
+end
+
+
+
+
+% Pvel flow on
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 38 22]);
+hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
+vencList = sort(unique(dataVenc),'descend'); Pvel = {};
+for vencIdx = 1:size(vencList,1)
+    ax{end+1} = nexttile;
+    P = angle(mean(  data(:,:,dataVenc==vencList(vencIdx))  ,3));
+    Pvel{end+1} = phase2vel(P,vencToM1(vencList(vencIdx)));
+    imagesc(ax{end},PEpos,FEpos,Pvel{end}); axis image
+    title(ax{end},['flow on; venc=' num2str(vencList(vencIdx)) ' cm/s']);
+    set(ax{end},'XTick',[],'YTick',[]);
+    if vencIdx<5
+        cb = colorbar(ax{end},'Location','westoutside');
+        ylabel(cb, 'PD velocity [cm/s]');
+    end
+    ax{end}.Colormap = redblue;
+    % cb.Ticks = -pi:pi/2:pi;
+    % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
+end
+set([ax{:}],'CLim',[-1 1].*9);
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+ax{end+1} = nexttile;
+imagesc(ax{end},PEpos,FEpos,maskTissueOnly)
+ax{end}.Colormap = gray;
+hold(ax{end},'on');
+plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
+plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
+title(ax{end},'blood-only mask');
+
+%save
+if saveThis || ~exist(fullfile(sec9fig,'PvelFlowOn.fig'),'file')
+    saveas(        f      , fullfile(sec9fig,'PvelFlowOn.fig'));
+    exportgraphics(f      , fullfile(sec9fig,'PvelFlowOn.png'));
+    exportgraphics(f      , fullfile(sec9fig,'PvelFlowOn.svg'));
+end
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end % section 9
+
+
+
+if 1
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 10 - in vivo details -- all vessels
+%%%%%%%%%%%%%%%
+sec10fig = fullfile(info.project.figures, '10-in-vivo-details');
+if ~exist(sec10fig,'dir'); mkdir(sec10fig); end
 for s = 1:2
     img      = inVivoSubData{s}.img;
     imgInfo  = inVivoSubData{s}.imgInfo;
@@ -1114,10 +1218,10 @@ for s = 1:2
     ax.XAxis.Visible = 'off'; ax.YAxis.Visible = 'off';
     ax.CLim = [0, 1/2*max(hIm.CData(:))];
     set(hBox,'LineWidth',0.5);
-    if saveThis || ~exist(fullfile(info.project.figures,[inVivoSubNames{s} '-roiOverlay.png']),'file')
+    if saveThis || ~exist(fullfile(sec10fig,[inVivoSubNames{s} '-roiOverlay.png']),'file')
         drawnow;
-        exportgraphics(hF, fullfile(info.project.figures,[inVivoSubNames{s} '-roiOverlay.png']));
-        exportgraphics(hF, fullfile(info.project.figures,[inVivoSubNames{s} '-roiOverlay.svg']));
+        exportgraphics(hF, fullfile(sec10fig,[inVivoSubNames{s} '-roiOverlay.png']));
+        exportgraphics(hF, fullfile(sec10fig,[inVivoSubNames{s} '-roiOverlay.svg']));
     end
     close(hF); clear hBox hText
 
@@ -1177,7 +1281,7 @@ for s = 1:2
         uistack(plot(x,y,'w'),'bottom');
         title(legend(hPcont,trjVencLabel),'V_{enc} (cm/s)');
         vesselFigName = [inVivoSubNames{s} '_vessel-' num2str(roiIdx,'%02d')];
-        subFigDir = fullfile(info.project.figures, inVivoSubNames{s});
+        subFigDir = fullfile(sec10fig, inVivoSubNames{s});
         if ~exist(subFigDir,'dir'); mkdir(subFigDir); end
         if saveThis || ~exist(fullfile(subFigDir,[vesselFigName '.png']),'file')
             drawnow;
@@ -1187,73 +1291,5 @@ for s = 1:2
         close(hFv); clear hPcont d prob
     end
 end
-%% %%%%%%%%%%%%
-end
-
-
-
-
-if 0
-saveThis = 1;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Illustrate the effect of inflow on FVE spectrum -- ISMRM2026-poster.pptx slide 12
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-p = runSim;
-tmp = runSim(p.pVessel,p.pSim,p.pMri);
-p.pVessel.vMean = tmp.pMri.vCrit/2*1.5;
-p.pMri.FA = 90;
-p.pMri.venc.method = 'FVEmono';
-p.pMri.venc.FVEbw = p.pVessel.vMean*4;
-p.pMri.venc.FVEres = p.pMri.venc.FVEbw./200;
-p.pSim.nSpin = (2^10+1)^2;
-res      = runSim(p.pVessel,p.pSim,p.pMri,[],0);
-% p.pMri.sliceThickness = inf;
-Mz  = getMz_ss(p.pMri,p.pMri.relax.blood,p.pVessel.vMean);
-Mxy = getMxy_ss(Mz,p.pMri,p.pMri.relax.blood);
-p.pVessel.S.lumen = Mxy;
-resSatin = runSim(p.pVessel,p.pSim,p.pMri);
-
-fVelSpec = figure;
-hFlat = plot(resSatin.pMri.venc.FVEvel,abs(fftshift(fft(squeeze(resSatin.I)))),'w');
-hold on
-hVdep = plot(res.pMri.venc.FVEvel     ,abs(fftshift(fft(squeeze(res.I))))     ,'g');
-axis tight; grid on; xlabel('velocity (cm/s)'); ylabel('velocity spectrum/histogram');
-yLim = ylim; yLim(1) = 0; ylim(yLim);
-[N,edges] = histcounts(res.vMap(getVoxIdx(res.pSim.voxGrid,res.pSim.spinGrid)==0),20);
-% binWidth = mean(diff(edges));
-% edges = edges-binWidth/2; edges(end+1) = edges(end)+binWidth;
-% [N,edges] = histcounts(res.vMap(getVoxIdx(res.pSim.voxGrid,res.pSim.spinGrid)==0),edges);
-hVhist = histogram('BinEdges',edges,'BinCounts',N/max(N)*yLim(2),'FaceColor',0.5.*[1 1 1],'EdgeColor','none');
-legend([hFlat,hVdep,hVhist],['velocity spectrum from' newline 'flat magnitude profile'],['velocity spectrum from' newline 'velocity-dependent magnitude profile'],'normalized velocity histogram','Location','northwest','box','off');
-uistack(hVhist,'bottom');
-
-fVelSpecInflow = figure;
-% inflowVel = linspace(0,p.pVessel.vMean*3,2^10);
-inflowVel = linspace(0,6,2^10);
-[inflowMz,~,~,~,~,inflowVel] = getMz_ss(p.pMri,p.pMri.relax.blood,inflowVel);
-% inflowMxy = getMxy_ss(inflowMz,p.pMri,p.pMri.relax.blood);
-hStairs = stairs(inflowVel,inflowMz,'g');
-axis tight square; grid on; xlabel('spin velocity (cm/s)'); ylabel('M_z');
-ylim([0 1])
-
-if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
-if saveThis || ~exist(fullfile(info.project.figures,'FVEvelSpec.fig'),'file') || ~exist(fullfile(info.project.figures,'FVEvelSpec_inflow.fig'),'file')
-    saveas(        fVelSpec      , fullfile(info.project.figures,'FVEvelSpec.fig'       ));
-    exportgraphics(fVelSpec      , fullfile(info.project.figures,'FVEvelSpec.png'       ));
-    exportgraphics(fVelSpec      , fullfile(info.project.figures,'FVEvelSpec.svg'       ));
-    saveas(        fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.fig'));
-    exportgraphics(fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.png'));
-    exportgraphics(fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.svg'));
-end
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-fVelSpec; % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
-fVelSpecInflow; % Here the weighting effect was maximized using a 90 flip angle for a linear magnitude function of velocity
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
-
-
-
-
-
-
-
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end % section 10
