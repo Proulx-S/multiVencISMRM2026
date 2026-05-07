@@ -1,52 +1,53 @@
-function [velFit, magFit] = fitMagVelProfile(r, v, m, mNoFlow, R, fitType, polyOrder, offset, FEPE)
-% Fit v(r) and m(v) jointly or sequentially to flow and no-flow radial profile data.
-%   r       — Nx1 radial positions from nominal centre [mm]; rGrid(mask)
+function [velFit, magFit, velFit1d] = fitMagVelProfile(r, p, v, m, mNoFlow, R, fitType, polyOrder, offset)
+% Fit v(r,p) and m(v) jointly or sequentially to flow and no-flow radial profile data.
+%   r       — Nx1 radial distance from nominal centre [mm]; rGrid(mask)
+%   p       — Nx1 polar angle [rad]; pGrid(mask)
+%             p = -atan2(FEgrid, PEgrid); p=0 → +PE axis (right in imagesc display)
 %   v, m    — Nx1 velocity [cm/s] and magnitude of flow pixels
 %   mNoFlow — Mx1 magnitudes of no-flow pixels; fixes B = mean(mNoFlow)
 %   R       — vessel radius start point [mm] (required when offset=true)
 %   fitType — 'joint' (default) or 'sequential'
 %   polyOrder — polynomial order for m(v) (default 2; supports 1–4)
 %   offset  — []   : no centre offset (default)
-%             true : fit (FEoffset,PEoffset) as free parameters; FEPE (arg 9) required
-%   FEPE    — Nx2 [FEgrid(mask), PEgrid(mask)]: col1 = FE (row axis, vertical
-%             in imagesc display), col2 = PE (col axis, horizontal); required
-%             when offset=true
+%             true : fit (FEoffset,PEoffset) as free parameters
 %
 %   Models:  v(r)    = Vmax*(1-(r/R)^2)           velocity_func_radius
 %            m(v)    = B + C1*v + ... + Cn*v^n    magnitude_func_velocity
 %
 %   velFit calling convention:
-%     offset=[]:   velFit(r)         — 1D cfit; r = rGrid(mask)
-%     offset=true: velFit(r, theta)  — 2D sfit
-%                  theta = atan2(PE, FE) [rad]; theta=0 along +FE axis
-%                  (vertical in imagesc display, i.e. downward for typical FEpos)
-%                  Use pGrid = atan2(PEgrid, FEgrid) at the call site.
-%   FEoffset = offset along FE axis (vertical in display); velFit.FEoffset
-%   PEoffset = offset along PE axis (horizontal in display); velFit.PEoffset
+%     offset=[]:   velFit(r, p)      — 2D sfit; centre offset fixed at (0,0)
+%     offset=true: velFit(r, p)      — 2D sfit; FEoffset/PEoffset fitted
+%   r*cos(p) = PE component, r*sin(p) = -FE component  (p=0 → right, CCW positive)
+%   FEoffset = offset along FE axis (vertical); velFit.FEoffset
+%   PEoffset = offset along PE axis (horizontal); velFit.PEoffset
 if ~exist('offset'   ,'var') || isempty(offset);    offset    = []; end
 if ~exist('fitType'  ,'var') || isempty(fitType);   fitType   = 'joint'; end
 if ~exist('polyOrder','var') || isempty(polyOrder); polyOrder = 2; end
 if exist('R','var') && ~isempty(R); R = double(R); end
 
-r = double(r(:)); v = double(v(:)); m = double(m(:)); mNoFlow = double(mNoFlow(:));
-B = mean(mNoFlow);
+r = double(r(:)); p = double(p(:));
+v = double(v(:)); m = double(m(:)); mNoFlow = double(mNoFlow(:));
+% Normalise magnitudes internally so B_init = 1 → polynomial coefficients O(1)
+% regardless of the caller's magnitude scale.  magFit is un-scaled on output.
+mScale  = mean(mNoFlow);
+m       = m       / mScale;
+mNoFlow = mNoFlow / mScale;
+B = 1;  % = mean(mNoFlow) after normalisation
 
 fitOff = isequal(offset, true);
-if fitOff
-    if nargin < 9 || isempty(FEPE)
-        error('fitMagVelProfile: offset=true requires FEPE as 9th argument [FEgrid(mask), PEgrid(mask)].');
-    end
-    FEPE = double(FEPE);
+if fitOff && (nargin < 6 || isempty(R))
+    error('fitMagVelProfile: offset=true requires R as 6th argument.');
 end
 
 % v(r) fittype — 1D, no offset
 ft_vel = fittype(@(Vmax, R, r) velocity_func_radius(r, Vmax, R), ...
     'independent', 'r', 'coefficients', {'Vmax', 'R'});
 
-% v(r,theta) fittype — 2D sfit, polar coords; offset correction applied internally
-ft_vel_off = fittype(@(Vmax, R, FEoffset, PEoffset, r, theta) ...
-    velocity_func_radius(sqrt((r.*cos(theta)-FEoffset).^2+(r.*sin(theta)-PEoffset).^2), Vmax, R), ...
-    'independent', {'r', 'theta'}, 'coefficients', {'Vmax', 'R', 'FEoffset', 'PEoffset'});
+% v(r,p) fittype — 2D sfit, polar coords; offset correction applied internally
+% p=0 → +PE (right in display): r*cos(p)=PE component, r*sin(p)=-FE component
+ft_vel_off = fittype(@(Vmax, R, FEoffset, PEoffset, r, p) ...
+    velocity_func_radius(sqrt((r.*cos(p)-PEoffset).^2+(-r.*sin(p)-FEoffset).^2), Vmax, R), ...
+    'independent', {'r', 'p'}, 'coefficients', {'Vmax', 'R', 'FEoffset', 'PEoffset'});
 
 % m(v) fittype — built dynamically for the requested polynomial order
 switch polyOrder
@@ -71,11 +72,14 @@ switch fitType
 
     case 'sequential'
         [velFit_, ~]   = fitVelProfile(r, v, R);
-        velFit         = cfit(ft_vel, velFit_.Vmax, velFit_.R);
+        velFit         = sfit(ft_vel_off, velFit_.Vmax, velFit_.R, 0, 0);
+        velFit1d       = cfit(ft_vel,     velFit_.Vmax, velFit_.R);
         v_pred         = velocity_func_radius(r, velFit_.Vmax, velFit_.R);
         v_all          = [v_pred(:);  zeros(numel(mNoFlow), 1)];
         m_all          = [m(:);       mNoFlow(:)              ];
-        magFit         = fit(v_all, m_all, ft_mag, 'StartPoint', sp_mag);
+        magFit_n     = fit(v_all, m_all, ft_mag, 'StartPoint', sp_mag);
+        coeffs_scaled = num2cell(coeffvalues(magFit_n) * mScale);
+        magFit       = cfit(ft_mag, coeffs_scaled{:});
 
     case 'joint'
         sv = max(std(v),            eps);
@@ -89,7 +93,7 @@ switch fitType
             lb     = [0,    1e-6,  -inf(1, polyOrder+1), -R0/4, -R0/4];
             ub     = [inf,  2*R0,   inf(1, polyOrder+1),  R0/4,  R0/4];
             opts   = optimoptions('lsqnonlin', 'Display', 'off');
-            theta  = lsqnonlin(@(th) residuals_joint_off(th, FEPE, v, m, mNoFlow, sv, sm), ...
+            theta  = lsqnonlin(@(th) residuals_joint_off(th, r, p, v, m, mNoFlow, sv, sm), ...
                                theta0, lb, ub, opts);
             % sfit uses definition order: Vmax, R, FEoffset, PEoffset
             velFit = sfit(ft_vel_off, theta(1), theta(2), theta(end-1), theta(end));
@@ -99,9 +103,10 @@ switch fitType
             opts   = optimoptions('lsqnonlin', 'Display', 'off');
             theta  = lsqnonlin(@(th) residuals_joint(th, r, v, m, mNoFlow, sv, sm), ...
                                theta0, lb, [], opts);
-            velFit = cfit(ft_vel, theta(1), theta(2));
+            velFit = sfit(ft_vel_off, theta(1), theta(2), 0, 0);
         end
-        C_vals = num2cell(theta(3 : 3 + polyOrder));
+        velFit1d = cfit(ft_vel, theta(1), theta(2));  % 1D accessor: velFit1d(r), no offset
+        C_vals = num2cell(theta(3 : 3 + polyOrder) * mScale);  % un-normalise
         magFit = cfit(ft_mag, C_vals{:});
 
     otherwise
@@ -122,12 +127,13 @@ res = [res_v(:); res_m(:); res_mNF(:)];
 end
 
 
-function res = residuals_joint_off(theta, FEPE, v, m, mNoflow, sv, sm)
+function res = residuals_joint_off(theta, r, p, v, m, mNoflow, sv, sm)
 Vmax = theta(1);  R = theta(2);
 C    = num2cell(theta(3 : end-2));
 FEoffset = theta(end-1);  PEoffset = theta(end);
-r    = sqrt((FEPE(:,1) - FEoffset).^2 + (FEPE(:,2) - PEoffset).^2);
-v_pred  = velocity_func_radius(r, Vmax, R);
+% p=0 → +PE: r*cos(p)=PE component, r*sin(p)=-FE component
+r_off = sqrt((r.*cos(p) - PEoffset).^2 + (-r.*sin(p) - FEoffset).^2);
+v_pred  = velocity_func_radius(r_off, Vmax, R);
 res_v   = (v       - v_pred)                                 / sv;
 res_m   = (m       - magnitude_func_velocity(v_pred, C{:})) / sm;
 res_mNF = (mNoflow - magnitude_func_velocity(0,      C{:})) / sm;

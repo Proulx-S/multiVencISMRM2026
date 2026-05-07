@@ -75,7 +75,7 @@ info.toClean = {};
 
 
 if 0
-saveThis = 0;
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot simulation summary -- velocity map, mag map and and complex-domain signal evolution, for plug flow and laminar flow (both with flat magnitude profile) -- ISMRM2026-poster.pptx slide 7
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -141,7 +141,7 @@ for rowIdx = 1:2
     I_s7    = IplotSim7{rowIdx};
     v_s7    = vPlotSim7{rowIdx};
     Mnorm_s7 = abs(mean(I_s7(v_s7==inf)));
-    plotComplexDomain(axSim7{end}, I_s7/Mnorm_s7, 'tight', 'line');
+    plotComplexDomain(axSim7{end}, I_s7/Mnorm_s7, [], 'tight', 'line');
     title(axSim7{end},{flowNamesSim7{rowIdx},'complex-domain signal'});
 end
 if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
@@ -156,7 +156,7 @@ end
 
 
 
-forceThis = 0;
+forceThis = 1;
 %%%%%%%%%%%%%%%%%%%%
 %% Load phantom data
 %%%%%%%%%%%%%%%%%%%%
@@ -177,36 +177,10 @@ bestVenc = 10; % cm/s
 data = conj(data);
 dataNoFlow = conj(dataNoFlow);
 
-%Scale magnitude to a decent range
-magScaleFac = mean(abs(data(:)));
-data       = data      ./magScaleFac;
-dataNoFlow = dataNoFlow./magScaleFac;
-
-
-% % Compute PD and CD (meas by meas)
-% runList = unique(dataRun);
-% dataPD = nan(size(data));
-% dataCD = nan(size(data));
-% dataNoFlowPD = nan(size(dataNoFlow));
-% dataNoFlowCD = nan(size(dataNoFlow));
-% for rIdx = 1:length(runList)
-
-%     measList = unique(dataMeas(dataRun==runList(rIdx)));
-%     for mIdx = 1:length(measList)
-%         idx    = dataRun==runList(rIdx) & dataMeas==measList(mIdx);
-%         idxRef = dataRun==runList(rIdx) & dataMeas==measList(mIdx) & dataVenc==inf;
-%         dataPD(:,:,idx)   = angle(  data(:,:,idx) ./ exp(1j.*angle(data(:,:,idxRef)))  );
-%         dataCD(:,:,idx)   = data(:,:,idx) - data(:,:,idxRef);
-%     end
-
-%     measList = unique(dataNoFlowMeas(dataRun==runList(rIdx)));
-%     for mIdx = 1:length(measList)
-%         idx    = dataRun==runList(rIdx) & dataNoFlowMeas==measList(mIdx);
-%         idxRef = dataRun==runList(rIdx) & dataNoFlowMeas==measList(mIdx) & dataVenc==inf;
-%         dataNoFlowPD(:,:,idx)   = angle(  dataNoFlow(:,:,idx) ./ exp(1j.*angle(dataNoFlow(:,:,idxRef)))  );
-%         dataNoFlowCD(:,:,idx)   = dataNoFlow(:,:,idx) - dataNoFlow(:,:,idxRef);
-%     end
-% end
+% %Scale magnitude to a decent range
+% magScaleFac = mean(abs(data(:)));
+% data       = data      ./magScaleFac;
+% dataNoFlow = dataNoFlow./magScaleFac;
 
 
 % Compute coordinates around center of mass
@@ -222,9 +196,7 @@ FEpos  = FEpos  - com(1);
 PEgrid = PEgrid - com(2);
 PEpos  = PEpos  - com(2);
 rGrid = sqrt(PEgrid.^2+FEgrid.^2);
-pGrid = atan2(PEgrid, FEgrid);
-clear com
-
+pGrid = -atan2(FEgrid, PEgrid);  % theta=0 → +PE ("right" in imagesc display)
 
 % Compute some masks
 dFE = abs(FEgrid);
@@ -234,18 +206,21 @@ d_far  = sqrt((dFE + FEspacing/2).^2 + (dPE + PEspacing/2).^2);
 % nearest point of each pixel to the center
 d_near = sqrt(max(0, dFE - FEspacing/2).^2 + max(0, dPE - PEspacing/2).^2);                                                                   
 
-maskBloodOnly  = d_far  < ID/2;              % pixel entirely inside inner circle
-maskWallOnly   = d_near > ID/2 & d_far < OD/2; % pixel entirely within wall annulus
-maskTissueOnly = d_near > OD/2;              % pixel entirely outside outer circle
-maskWallLowMag = single(M<0.44e-7);          % low magnitude pixels
+maskBloodOnly    = d_far  < ID/2;              % pixel entirely inside inner circle
+maskWallOnly     = d_near > ID/2 & d_far < OD/2; % pixel entirely within wall annulus
+maskNonBloodOnly = d_near > ID/2;
+maskTissueOnly   = d_near > OD/2;              % pixel entirely outside outer circle
+maskWallLowMag   = M<min(M(maskTissueOnly));          % low magnitude pixels
 
 theta = linspace(0, 2*pi, 360);                                                                                                               
+
+clear dFE dPE d_far d_near M com total
 %% %%%%%%%%%%%%%%%%%
 
 
 
 if 0
-saveThis = 0;
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot phantom details -- all maps and masks with and without flow -- ISMRM2026-poster.pptx slide 8 and 9
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -578,7 +553,7 @@ end
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%
 %% Radial profiles fits
@@ -592,76 +567,145 @@ vNoFlow = zeros(size(vFlow));
 rFlow   = rGrid;
 rNoFlow = rGrid;
 
-% Fit of v(r) velocity function of radius
-R = ID/2;
-[velFit, velFitFixR] = fitVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), R);
+% % Fit of v(r) velocity function of radius
+% R = ID/2;
+% [velFit, velFitFixR] = fitVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), R);
 
-% Fit of m(r) magnitude function of radius
-R = ID/2;
-B = abs(mean(cNoFlow(maskBloodOnly)));
-[magFit, magFitFixR, magFitFixB, magFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlow(maskBloodOnly)), R, B);
+% % Fit of m(r) magnitude function of radius
+% R = ID/2;
+% B = abs(mean(cNoFlow(maskBloodOnly)));
+% [magFit, magFitFixR, magFitFixB, magFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlow(maskBloodOnly)), R, B);
 
-% Fit of m(r) magnitude function of radius for the spoiled low-venc data
-R = ID/2;
-B = abs(mean(cNoFlowSpoiled(maskBloodOnly)));
-[magSpoilFit, magSpoilFitFixR, magSpoilFitFixB, magSpoilFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlowSpoiled(maskBloodOnly)), R, B);
+% % Fit of m(r) magnitude function of radius for the spoiled low-venc data
+% R = ID/2;
+% B = abs(mean(cNoFlowSpoiled(maskBloodOnly)));
+% [magSpoilFit, magSpoilFitFixR, magSpoilFitFixB, magSpoilFitFixBR] = fitMagProfile(rGrid(maskBloodOnly), abs(cFlowSpoiled(maskBloodOnly)), R, B);
 
-% Fit of v(r) and m(v(r)) jointly — no offset (comparison baseline)
-R = ID/2;
-[velJointFit_noOff, magJoinFit_noOff] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4);
+% % Fit of v(r) and m(v(r)) jointly — no offset (comparison baseline)
+% R = ID/2;
+% [velJointFit_noOff, magJoinFit_noOff] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4);
 
 % Fit of v(r) and m(v(r)) jointly — free centre offset (dx,dy)
-[velJointFit, magJoinFit] = fitMagVelProfile(rGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4, true, [FEgrid(maskBloodOnly), PEgrid(maskBloodOnly)]);
+R = ID/2;
+[velJointFit, magJoinFit, velJointFit1D] = fitMagVelProfile(rGrid(maskBloodOnly), pGrid(maskBloodOnly), vFlow(maskBloodOnly), abs(cFlow(maskBloodOnly)), abs(cNoFlow(maskBloodOnly)), R, 'joint', 4, true);
+
+% Piecewise fit of amplitude radial profile (non-blood voxels) to find rWO.
+% Model: low plateau | linear slope centred at rWO over width dr | high plateau
+%   th = [pLow, pHigh, rWO, dr]
+rWO   = R + OD/2-ID/2;
+dr    = (FEspacing + PEspacing)/2;
+pLow  = mean(abs(cFlow(maskWallOnly)));
+pHigh = mean(abs(cFlow(maskTissueOnly)));
+magWallTissueFit = fitMagBoundaryProfile(rGrid(maskNonBloodOnly), pGrid(maskNonBloodOnly), [velJointFit.FEoffset velJointFit.PEoffset], abs(cFlow(maskNonBloodOnly)), rWO, dr, pLow, pHigh);
 
 
-f = figure;
-hT = tiledlayout(f,3,2,'TileSpacing','compact','Padding','compact'); ax = {};
-theta = linspace(0, 2*pi, 360);
-% Reference circle: fitted radius and offset centre (imagesc axes: x=PE, y=FE)
-cx = velJointFit.R * cos(theta) + velJointFit.PEoffset;
-cy = velJointFit.R * sin(theta) + velJointFit.FEoffset;
 
-%mag
-ax{end+1} = nexttile;
-imagesc(PEpos,FEpos,abs(cFlow),[0 max(abs(cFlow(maskBloodOnly)))]); axis image; colormap(ax{end},'gray'); colorbar;
-hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
+% Offset-corrected radius for all pixels — used for radial profile plots
+r_off_all = sqrt((FEgrid - velJointFit.FEoffset).^2 + (PEgrid - velJointFit.PEoffset).^2);
 
-ax{end+1} = nexttile;
-imagesc(PEpos,FEpos,reshape(magJoinFit(velJointFit(rGrid(:),pGrid(:))),size(rGrid))); axis image; colormap(ax{end},'gray'); colorbar;
-hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
-
-cLim = get([ax{end-1:end}],'CLim'); cLim = [0 1] .*max([cLim{:}]); set([ax{end-1:end}],'CLim',cLim);
-
-
-%vel
-ax{end+1} = nexttile;
-imagesc(PEpos,FEpos,vFlow,[-1 1].*max(vFlow(maskBloodOnly))); axis image; colormap(ax{end},'jet'); colorbar;
-hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
-
-ax{end+1} = nexttile;
-imagesc(PEpos,FEpos,reshape(velJointFit(rGrid(:),pGrid(:)),size(rGrid))); axis image; colormap(ax{end},'jet'); colorbar;
-hold on; plot(cx, cy, 'w--', 'LineWidth', 1);
-
-cLim = get([ax{end-1:end}],'CLim'); cLim = [-1 1] .*max(abs([cLim{:}])); set([ax{end-1:end}],'CLim',cLim);
-
-
-%mag vs vel
-ax{end+1} = nexttile;
-scatter(vFlow(maskBloodOnly),abs(cFlow(maskBloodOnly)),'MarkerFaceColor','w','MarkerEdgeColor','k')
-axis square; xlabel('velocity'); ylabel('magnitude'); hold on
-v = linspace(0,max(vFlow(maskBloodOnly)),100);
-plot(v,magJoinFit(v),'w-');
-grid on
-
-ax{end+1} = nexttile;
+f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 30]);
+hT = tiledlayout(f,3,3,'TileSpacing','compact','Padding','compact'); ax = {};
+theta  = linspace(0, 2*pi, 360);
+cx     = velJointFit.R * cos(theta) + velJointFit.PEoffset;  % fitted lumen circle (imagesc: x=PE,y=FE)
+cy     = velJointFit.R * sin(theta) + velJointFit.FEoffset;
+v_plt  = linspace(0, max(vFlow(maskBloodOnly)), 200);
 vBlood = velJointFit(rGrid(maskBloodOnly), pGrid(maskBloodOnly));
-scatter(vBlood, magJoinFit(vBlood), 'MarkerFaceColor','w','MarkerEdgeColor','k')
-axis square; xlabel('velocity'); ylabel('magnitude'); hold on
-plot(v,magJoinFit(v),'w-');
-grid on
 
-xLim = get([ax{end-1:end}],'XLim'); xLim = [0 1] .*max([xLim{:}]); set([ax{end-1:end}],'XLim',xLim);
-yLim = get([ax{end-1:end}],'YLim'); yLim = [0 1] .*max([yLim{:}]); set([ax{end-1:end}],'YLim',yLim);
+r_blood     = linspace(0, velJointFit.R, 200);
+m_blood_fit = magJoinFit(velJointFit1D(r_blood));
+r_all_plt   = linspace(0, max(r_off_all(:)), 400);
+
+% ── Magnitude images ────────────────────────
+% phantom
+ax{end+1} = nexttile(1);
+imagesc(PEpos,FEpos,abs(cFlow),[0 max(abs(cFlow(maskBloodOnly)))]); axis image;
+colormap(ax{end},'gray'); colorbar; hold on; plot(cx,cy,'w--','LineWidth',1);
+title(ax{end},'measured mag');
+% matched sim
+ax{end+1} = nexttile(2);
+imagesc(PEpos,FEpos,reshape(magJoinFit(velJointFit(rGrid(:),pGrid(:))),size(rGrid))); axis image;
+colormap(ax{end},'gray'); colorbar; hold on; plot(cx,cy,'w--','LineWidth',1);
+title(ax{end},'fitted mag');
+
+cLim = get([ax{end-1:end}],'CLim'); cLim=[0 1].*max([cLim{:}]); set([ax{end-1:end}],'CLim',cLim);
+
+
+% ── velocity images ───────────────────────────────
+% phantom
+ax{end+1} = nexttile(4);
+imagesc(PEpos,FEpos,vFlow,[-1 1].*max(vFlow(maskBloodOnly))); axis image;
+colormap(ax{end},'jet'); colorbar; hold on; plot(cx,cy,'w--','LineWidth',1);
+title(ax{end},'measured vel');
+% matched sim
+ax{end+1} = nexttile(5);
+imagesc(PEpos,FEpos,reshape(velJointFit(rGrid(:),pGrid(:)),size(rGrid))); axis image;
+colormap(ax{end},'jet'); colorbar; hold on; plot(cx,cy,'w--','LineWidth',1);
+title(ax{end},'fitted vel');
+
+cLim = get([ax{end-1:end}],'CLim'); cLim=[-1 1].*max(abs([cLim{:}])); set([ax{end-1:end}],'CLim',cLim);
+
+% ── magnitude function of velocity ────────────────
+% phantom data scatter + fit line
+ax{end+1} = nexttile(7);
+plot(ax{end}, double(vFlow(maskBloodOnly)), double(abs(cFlow(maskBloodOnly))), '.w');
+hold(ax{end},'on');
+plot(ax{end}, v_plt, magJoinFit(v_plt), 'y-', 'LineWidth', 1.5);
+xlabel(ax{end},'velocity [cm/s]'); ylabel(ax{end},'magnitude [a.u.]');
+set(ax{end},'Color','k','GridColor',[0.5 0.5 0.5]); grid(ax{end},'on');
+title(ax{end},'measured vel vs mag');
+axis square
+
+% sim data scatter
+ax{end+1} = nexttile(8);
+v = velJointFit(rGrid(:),pGrid(:));
+m = magJoinFit(v);
+plot(ax{end}, double(v(v>0)), double(m(v>0)), '.w');
+xlabel(ax{end},'velocity [cm/s]'); ylabel(ax{end},'magnitude [a.u.]');
+set(ax{end},'Color','k','GridColor',[0.5 0.5 0.5]); grid(ax{end},'on');
+title(ax{end},'sim vel vs mag');
+axis square
+
+xLim=get([ax{end-1:end}],'XLim'); xLim=[0 1].*max([xLim{:}]); set([ax{end-1:end}],'XLim',xLim);
+yLim=get([ax{end-1:end}],'YLim'); yLim=[0 1].*max([yLim{:}]); set([ax{end-1:end}],'YLim',yLim);
+
+
+
+
+% ── radial profile of magnitudes ─────────
+ax{end+1} = nexttile(3);
+% phantom data
+plot(ax{end}, double(r_off_all), double(abs(cFlow)), '.w');
+hold(ax{end},'on');
+% blood fit
+r = linspace(0,velJointFit.R,100);
+plot(ax{end}, r, magJoinFit(velJointFit1D(r)),'-');
+xline(velJointFit1D.R)
+% wall-tissue fit
+r = linspace(velJointFit.R,max(r_off_all(:)),100);
+plot(ax{end}, r, magWallTissueFit(r),'-');
+xline(magWallTissueFit.rWO);
+axis square
+xlabel('radial position [mm]')
+ylabel('MR mag')
+
+
+
+
+% ── radial profile of velocities ─────────
+ax{end+1} = nexttile(6);
+% phantom data
+plot(ax{end}, double(r_off_all(maskBloodOnly|maskTissueOnly)), double(vFlow(maskBloodOnly|maskTissueOnly)), '.w');
+hold on
+% blood fit
+r = linspace(0,max(r_off_all(:)),100);
+plot(ax{end}, r, velJointFit1D(r),'-');
+xline(velJointFit1D.R)
+xline(magWallTissueFit.rWO)
+axis square
+xlabel('radial position [mm]')
+ylabel('velocity [cm/s]')
+
+
 
 if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesFits.fig'),'file')
     saveas(        f, fullfile(info.project.figures,'radialProfilesFits.fig'));
@@ -669,156 +713,40 @@ if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesFits.fig'),'f
     exportgraphics(f, fullfile(info.project.figures,'radialProfilesFits.svg'));
 end
 if saveThis || ~exist(fullfile(info.project.figures,'radialProfilesFits.mat'),'file')
-    save(fullfile(info.project.figures,'radialProfilesFits.mat'), ...
-        'velFit', 'velFitFixR', ...
-        'magFit', 'magFitFixR', 'magFitFixB', 'magFitFixBR', ...
-        'magSpoilFit', 'magSpoilFitFixR', 'magSpoilFitFixB', 'magSpoilFitFixBR', ...
-        'velJointFit', 'magJoinFit', 'velJointFit_noOff', 'magJoinFit_noOff');
+    save(fullfile(info.project.figures,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
 end
 
-% Comparison figure: no-offset vs free-offset joint fit
-thetaC       = linspace(0,2*pi,360);
-vel_noOff    = reshape(velJointFit_noOff(rGrid(:)),          size(rGrid));
-vel_withOff  = reshape(velJointFit(      rGrid(:),pGrid(:)), size(rGrid));
-mag_noOff    = reshape(magJoinFit_noOff( vel_noOff(:)),      size(rGrid));
-mag_withOff  = reshape(magJoinFit(       vel_withOff(:)),    size(rGrid));
-cLim_m       = [0,  max(abs(cFlow(maskBloodOnly)))];
-cLim_v       = max(abs(vFlow(maskBloodOnly))) * [-1 1];
-
-fComp  = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 36 22]);
-hTComp = tiledlayout(fComp,2,3,'TileSpacing','compact','Padding','compact'); axComp = {};
-
-axComp{end+1} = nexttile(hTComp);
-imagesc(PEpos,FEpos,abs(cFlow),cLim_m); axis image; colormap(axComp{end},'gray'); colorbar; title('measured magnitude');
-
-axComp{end+1} = nexttile(hTComp);
-imagesc(PEpos,FEpos,mag_noOff,cLim_m); axis image; colormap(axComp{end},'gray'); colorbar;
-hold on; plot(velJointFit_noOff.R*cos(thetaC), velJointFit_noOff.R*sin(thetaC),'w--','LineWidth',1);
-title(sprintf('no-offset  Vmax=%.2f  R=%.2f mm', velJointFit_noOff.Vmax, velJointFit_noOff.R));
-
-axComp{end+1} = nexttile(hTComp);
-imagesc(PEpos,FEpos,mag_withOff,cLim_m); axis image; colormap(axComp{end},'gray'); colorbar;
-hold on; plot(velJointFit.R*cos(thetaC)+velJointFit.PEoffset, velJointFit.R*sin(thetaC)+velJointFit.FEoffset,'w--','LineWidth',1);
-title(sprintf('free-offset  Vmax=%.2f  R=%.2f  FEoff=%.2f  PEoff=%.2f mm', velJointFit.Vmax, velJointFit.R, velJointFit.FEoffset, velJointFit.PEoffset));
-
-axComp{end+1} = nexttile(hTComp);
-imagesc(PEpos,FEpos,vFlow,cLim_v); axis image; colormap(axComp{end},redblue); colorbar; title('measured velocity');
-
-axComp{end+1} = nexttile(hTComp);
-imagesc(PEpos,FEpos,vel_noOff,cLim_v); axis image; colormap(axComp{end},redblue); colorbar;
-hold on; plot(velJointFit_noOff.R*cos(thetaC), velJointFit_noOff.R*sin(thetaC),'w--','LineWidth',1);
-title('no-offset velocity');
-
-axComp{end+1} = nexttile(hTComp);
-imagesc(PEpos,FEpos,vel_withOff,cLim_v); axis image; colormap(axComp{end},redblue); colorbar;
-hold on; plot(velJointFit.R*cos(thetaC)+velJointFit.PEoffset, velJointFit.R*sin(thetaC)+velJointFit.FEoffset,'w--','LineWidth',1);
-title('free-offset velocity');
-
-if saveThis
-    exportgraphics(fComp, fullfile(info.project.figures,'offsetFitComparison.png'));
-    exportgraphics(fComp, fullfile(info.project.figures,'offsetFitComparison.svg'));
+% % Comparison figure: no-offset vs free-offset joint fit (requires velJointFit_noOff)
+% thetaC       = linspace(0,2*pi,360);
+% vel_noOff    = reshape(velJointFit_noOff(rGrid(:)),          size(rGrid));
+% vel_withOff  = reshape(velJointFit(      rGrid(:),pGrid(:)), size(rGrid));
+% mag_noOff    = reshape(magJoinFit_noOff( vel_noOff(:)),      size(rGrid));
+% mag_withOff  = reshape(magJoinFit(       vel_withOff(:)),    size(rGrid));
+% ... (see git history for full comparison figure code)
+%% %%%%%%%%%%%%%%%%%%%%
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
-
-
-
-
-
-
-
-
 
 
 
 
 if 0
-saveThis = 0;
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Plot phantom + matched simulation combined summary — ISMRM2026-poster.pptx slide 8
+%  Layout: 2×5 columnmajor — col 1: phantom | col 2: simulation | cols 3-5: complex domain
+%  Complex-domain plot: phantom = dot markers, matched simulation = line
+%  Companion: phantomSimMasksSummary (same section, generated right after)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot phantom summary -- reference mag, velocity map at good venc and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 8
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 18.5]);
-hT = tiledlayout(f,3,5,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
 
-% Plot mag
-ax{end+1} = nexttile;
-M = squeeze(abs(mean(data(:,:,dataVenc==inf),3)));
-hIm = imagesc(ax{end},PEpos,FEpos,M,[0 max(M(:))]); axis image;
-ylabel(colorbar('Location','westoutside'), 'MR magn. [a.u.]');
-ax{end}.Colormap = gray;
-set(ax{end},'XTick',[],'YTick',[]);
-title(ax{end},'phantom ROI');
+% --- Load joint fits ---
+load(fullfile(info.project.figures,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
 
-% Plot velocity map
-ax{end+1} = nexttile;
-PD   = angle(mean(  data(:,:,dataVenc==bestVenc) ./ exp(1j.*angle(mean(data(:,:,dataVenc==inf),3)))  ,3));
-CD   = mean(data(:,:,dataVenc==bestVenc),3)-mean(data(:,:,dataVenc==inf),3);
-[velCD,phi,velPD,~,~,~] = getPlugFlowEstimates(bestVenc,CD,[],[],PD);
-hIm = imagesc(ax{end},PEpos,FEpos,velPD,[-max(abs(velPD(:))) max(abs(velPD(:)))]); axis image;
-ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
-ax{end}.Colormap = redblue;
-set(ax{end},'XTick',[],'YTick',[]);
-title(ax{end},['venc=' num2str(bestVenc) 'cm/s']);
-
-% Plot masks
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskBloodOnly,[0 1]); axis image
-ax{end}.Colormap = gray;
-set(ax{end},'XTick',[],'YTick',[],'Color','none');
-hold(ax{end},'on');
-theta = linspace(0, 2*pi, 360);
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-title(ax{end},'blood-only mask');
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskTissueOnly,[0 1]); axis image
-ax{end}.Colormap = gray;
-set(ax{end},'XTick',[],'YTick',[],'Color','none');
-hold(ax{end},'on');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'tissue-only mask');
-ax{end+1} = nexttile;
-imagesc(ax{end},PEpos,FEpos,maskWallLowMag,[0 1]); axis image
-ax{end}.Colormap = gray;
-set(ax{end},'XTick',[],'YTick',[],'Color','none');
-hold(ax{end},'on');
-plot(ax{end},ID/2 * cos(theta), ID/2 * sin(theta), 'm');
-plot(ax{end},OD/2 * cos(theta), OD/2 * sin(theta), 'm');
-title(ax{end},'low-mag wall mask');
-
-% Plot complex domain signal
-ax{end+1} = nexttile([3 3]);
-I_ph    = squeeze(mean(data,[1 2]));
-Ivenc_ph = squeeze(dataVenc);
-Mnorm_ph = abs(mean(I_ph(Ivenc_ph==inf)));
-vencList_ph = sort(unique(Ivenc_ph),'descend');
-I_ph_mean = arrayfun(@(v) mean(I_ph(Ivenc_ph==v)), vencList_ph) / Mnorm_ph;
-plotComplexDomain(ax{end}, I_ph_mean, 'full', 'markers');
-
-% Save
-if saveThis || ~exist(fullfile(info.project.figures,'phantomSummary.fig'))
-    saveas(        f      , fullfile(info.project.figures,'phantomSummary.fig'));
-    exportgraphics(f      , fullfile(info.project.figures,'phantomSummary.png'));
-    exportgraphics(f      , fullfile(info.project.figures,'phantomSummary.svg'));
-end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-end
-
-
-
-if 0
-saveThis = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Plot matched simulation summary — joint velocity + magnitude fits
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-load(fullfile(info.project.figures,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit');
-
-% Set up simulation
-p = runSim;
+% --- Simulation: setup matched to joint fit ---
+p       = runSim;
 pSim    = p.pSim;
 pVessel = p.pVessel;
 pMri    = p.pMri;
 
-% match voxel grid to phantom data
 pSim.voxGrid.fovFE = size(data,1) * FEspacing;
 pSim.voxGrid.fovPE = size(data,2) * PEspacing;
 pSim.voxGrid.matFE = size(data,1);
@@ -826,103 +754,204 @@ pSim.voxGrid.matPE = size(data,2);
 pSim.nSpin         = (2^10)^2;
 pSim.gridMode      = 'pseudoVoxel';
 
-% match vessel geometry from joint velocity fit
 pVessel.ID      = velJointFit.R * 2;
-pVessel.WT      = OD/2 - ID/2;
+pVessel.WT      = magWallTissueFit.rWO - velJointFit.R;
 pVessel.vMean   = velJointFit.Vmax / 2;
+pVessel.posFE   = velJointFit.FEoffset;
+pVessel.posPE   = velJointFit.PEoffset;
 pVessel.profile = 'parabolic1';
 
-% match MRI acquisition parameters
-pMri.fieldStrength   = 3;
-pMri.species         = 'phantom';
-pMri.sliceThickness  = 2.2;
-pMri.TR              = 75.90/(5+1)/1000;
-pMri.TE              = 9.8/1000;
-pMri.FA              = 50;
-pMri.venc.method     = 'FVEmono';
+pMri.fieldStrength  = 3;
+pMri.species        = 'phantom';
+pMri.sliceThickness = 2.2;
+pMri.TR             = 75.90/(5+1)/1000;
+pMri.TE             = 9.8/1000;
+pMri.FA             = 50;
+pMri.venc.method    = 'FVEmono';
 
-% precompute spinGrid
-p = runSim(pVessel, pSim, pMri);
+p       = runSim(pVessel, pSim, pMri);
 pSim    = p.pSim;
 pVessel = p.pVessel;
 pMri    = p.pMri;
 
-% match S to phantom data using joint m(v(r)) fit
-[spinGridFE3, spinGridPE3] = ndgrid(pSim.spinGrid.coorFE, pSim.spinGrid.coorPE);
-spinGridR3 = sqrt(spinGridFE3.^2 + spinGridPE3.^2);
-r_lumen3   = spinGridR3(pVessel.mask.lumen);
-pVessel.S.lumen    = max(0, magJoinFit(velJointFit(r_lumen3)))    ./ pSim.nSpinPerVox;
-pVessel.S.surround = mean(abs(cFlow(maskTissueOnly)))              ./ pSim.nSpinPerVox;
-pVessel.S.wall     = mean(abs(cFlow(maskWallOnly)))                ./ pSim.nSpinPerVox;
+% reconstruct cartesian and polar representation grids
+[pSim.spinGrid.feGrid, pSim.spinGrid.peGrid] = ndgrid(pSim.spinGrid.coorFE, pSim.spinGrid.coorPE);  % dim1=FE, dim2=PE
+pSim.spinGrid.rGrid = sqrt(pSim.spinGrid.peGrid.^2+pSim.spinGrid.feGrid.^2);
+pSim.spinGrid.pGrid = -atan2(pSim.spinGrid.feGrid, pSim.spinGrid.peGrid);  % theta=0 → +PE ("right" in imagesc display)
+[pSim.voxGrid.feGrid, pSim.voxGrid.peGrid] = ndgrid(pSim.voxGrid.coorFE, pSim.voxGrid.coorPE);  % dim1=FE, dim2=PE
+pSim.voxGrid.rGrid = sqrt(pSim.voxGrid.peGrid.^2+pSim.voxGrid.feGrid.^2);
+pSim.voxGrid.pGrid = -atan2(pSim.voxGrid.feGrid, pSim.voxGrid.peGrid);  % theta=0 → +PE ("right" in imagesc display)
 
-% Run simulation
-resSim3 = runSim(pVessel, pSim, pMri, [], false);
+% Offset-corrected radius for each spin (same convention as magWallTissueFit input)
+r_off_spin = sqrt((pSim.spinGrid.feGrid - pVessel.posFE).^2 + (pSim.spinGrid.peGrid - pVessel.posPE).^2);
 
-% Display variables
-FEax3      = resSim3.pSim.spinGrid.coorFE;
-PEax3      = resSim3.pSim.spinGrid.coorPE;
-magMap3    = double(resSim3.magMap);
-vMap3      = double(resSim3.vMap);
-theta3     = linspace(0, 2*pi, 360);
-Ienc3      = squeeze(resSim3.I);
-Ienc3_norm = Ienc3 ./ max(abs(Ienc3));
+% Lumen: per-spin signal from joint m(v(r,p)) fit
+% velJointFit(r,p): r=distance from image centre, p=-atan2(FEgrid,PEgrid); offsets applied internally
+pVessel.S.lumen    = max(0, magJoinFit(velJointFit(pSim.spinGrid.rGrid(pVessel.mask.lumen), pSim.spinGrid.pGrid(pVessel.mask.lumen))));
 
-% Plot
-fSim3  = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 18.5]);
-hTSim3 = tiledlayout(fSim3,3,5,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); axSim3 = {};
+% Wall and surround: per-spin signal from boundary profile fit (function of offset-corrected radius)
+pVessel.S.wall     = 0;
+pVessel.S.surround = magWallTissueFit.pHigh;
 
-axSim3{end+1} = nexttile(hTSim3);
-imagesc(axSim3{end}, PEax3, FEax3, magMap3, [0 max(magMap3(:))]); axis image;
+% Run matched simulation
+resMatchedSim = runSim(pVessel, pSim, pMri, [], false);
+
+
+
+%
+% Figure 1: combined summary (no masks) — 2×5 columnmajor
+%
+fComb  = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 13]);
+hTComb = tiledlayout(fComb, 2, 5, 'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor');
+axComb = {};
+
+% Phantom — column 1: mag, velocity
+axComb{end+1} = nexttile(hTComb);
+im = abs(mean(data(:,:,dataVenc==inf),3));
+imagesc(axComb{end}, PEpos, FEpos, im, [0 max(im(:))]); axis image;
 ylabel(colorbar('Location','westoutside'), 'MR magn. [a.u.]');
-axSim3{end}.Colormap = gray; set(axSim3{end},'XTick',[],'YTick',[]);
-title(axSim3{end}, 'simulation ROI');
+axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[]);
+title(axComb{end}, 'phantom ROI');
 
-axSim3{end+1} = nexttile(hTSim3);
-imagesc(axSim3{end}, PEax3, FEax3, vMap3, [-1 1].*max(abs(vMap3(:)))); axis image;
+axComb{end+1} = nexttile(hTComb);
+im = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)),vencToM1(bestVenc));
+imagesc(axComb{end}, PEpos, FEpos, im, [-1 1].* max(abs(im(:)))); axis image;
 ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
-axSim3{end}.Colormap = redblue; set(axSim3{end},'XTick',[],'YTick',[]);
-title(axSim3{end}, sprintf('joint fit: vMean=%.2f cm/s, R=%.2f mm', velJointFit.Vmax/2, velJointFit.R));
+axComb{end}.Colormap = redblue; set(axComb{end},'XTick',[],'YTick',[]);
+title(axComb{end}, ['venc=' num2str(bestVenc) ' cm/s']);
 
-axSim3{end+1} = nexttile(hTSim3);
-imagesc(axSim3{end}, PEax3, FEax3, single(resSim3.pVessel.mask.lumen), [0 1]); axis image;
-axSim3{end}.Colormap = gray; set(axSim3{end},'XTick',[],'YTick',[]);
-hold(axSim3{end},'on'); plot(axSim3{end}, ID/2*cos(theta3), ID/2*sin(theta3), 'm');
-title(axSim3{end}, 'lumen mask');
+% Simulation — column 2: mag, velocity
+axComb{end+1} = nexttile(hTComb);
+im = resMatchedSim.magMap;
+imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im, [0 max(im(:))]); axis image;
+ylabel(colorbar('Location','westoutside'), 'MR magn. [a.u.]');
+axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[]);
+title(axComb{end}, 'simulation ROI');
 
-axSim3{end+1} = nexttile(hTSim3);
-imagesc(axSim3{end}, PEax3, FEax3, single(resSim3.pVessel.mask.wall), [0 1]); axis image;
-axSim3{end}.Colormap = gray; set(axSim3{end},'XTick',[],'YTick',[]);
-hold(axSim3{end},'on');
-plot(axSim3{end}, ID/2*cos(theta3),         ID/2*sin(theta3),         'm');
-plot(axSim3{end}, (OD/2)*cos(theta3), (OD/2)*sin(theta3), 'm');
-title(axSim3{end}, 'wall mask');
+axComb{end+1} = nexttile(hTComb);
+im = resMatchedSim.vMap;
+imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im, [-1 1].*max(abs(im(:)))); axis image;
+ylabel(colorbar('Location','westoutside'), 'velocity [cm/s]');
+axComb{end}.Colormap = redblue; set(axComb{end},'XTick',[],'YTick',[]);
+title(axComb{end}, sprintf('joint fit: vMean=%.1f cm/s, R=%.1f mm', velJointFit.Vmax/2, velJointFit.R));
 
-axSim3{end+1} = nexttile(hTSim3);
-imagesc(axSim3{end}, PEax3, FEax3, single(resSim3.pVessel.mask.surround), [0 1]); axis image;
-axSim3{end}.Colormap = gray; set(axSim3{end},'XTick',[],'YTick',[]);
-hold(axSim3{end},'on'); plot(axSim3{end}, (OD/2)*cos(theta3), (OD/2)*sin(theta3), 'm');
-title(axSim3{end}, 'surround mask');
 
-axSim3{end+1} = nexttile(hTSim3, [3 3]);
-plotComplexDomain(axSim3{end}, Ienc3_norm, 'tight', 'line');
-title(axSim3{end}, 'complex-domain signal (joint v(r)+m(v) fit)');
+% Combined complex-domain (cols 3-5): phantom dots + simulation line
+axComb{end+1} = nexttile(hTComb, [2 3]);
 
-if saveThis || ~exist(fullfile(info.project.figures,'matchedSimSummaryFits.fig'),'file')
-    saveas(        fSim3, fullfile(info.project.figures,'matchedSimSummaryFits.fig'));
-    exportgraphics(fSim3, fullfile(info.project.figures,'matchedSimSummaryFits.png'));
-    exportgraphics(fSim3, fullfile(info.project.figures,'matchedSimSummaryFits.svg'));
+plotComplexDomain(axComb{end}, sum(data, [1 2]), dataVenc, 'full', 'markers');
+hold(axComb{end}, 'on');
+plot(axComb{end}, real(squeeze(resMatchedSim.I)), imag(squeeze(resMatchedSim.I)), 'c-', 'LineWidth', 1.5);
+hold(axComb{end}, 'off');
+legend(axComb{end}, {'phantom','simulation'}, 'Location','best', 'TextColor','w', 'Color','k');
+title(axComb{end}, 'complex-domain ROI signal');
+
+if saveThis || ~exist(fullfile(info.project.figures,'phantomSimCombinedSummary.fig'),'file')
+    saveas(        fComb, fullfile(info.project.figures,'phantomSimCombinedSummary.fig'));
+    exportgraphics(fComb, fullfile(info.project.figures,'phantomSimCombinedSummary.png'));
+    exportgraphics(fComb, fullfile(info.project.figures,'phantomSimCombinedSummary.svg'));
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%
+% Figure 2: masks — 2×5 rowmajor, no colorbars so all tiles have identical physical mm size
+%  Row 1 (phantom): mag | vel | blood mask | tissue mask | wall mask
+%  Row 2 (simulation): mag | vel | lumen mask | wall mask | surround mask
+%  XLim/YLim forced equal within each row after axis image.
+%
+fMask  = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 35 14]);
+hTMask = tiledlayout(fMask, 2, 5, 'TileSpacing','compact','Padding','compact');
+axMask = {};
+theta3 = linspace(0, 2*pi, 360);
+PEax3  = resMatchedSim.pSim.spinGrid.coorPE;
+FEax3  = resMatchedSim.pSim.spinGrid.coorFE;
+
+% Phantom row — no colorbars
+axMask{end+1} = nexttile(hTMask);
+im = abs(mean(data(:,:,dataVenc==inf),3));
+imagesc(axMask{end}, PEpos, FEpos, im, [0 max(im(:))]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[]);
+title(axMask{end}, 'phantom mag');
+
+axMask{end+1} = nexttile(hTMask);
+im = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)), vencToM1(bestVenc));
+imagesc(axMask{end}, PEpos, FEpos, im, [-1 1].*max(abs(im(:)))); axis image;
+axMask{end}.Colormap = redblue; set(axMask{end},'XTick',[],'YTick',[]);
+title(axMask{end}, ['phantom vel  venc=' num2str(bestVenc) ' cm/s']);
+
+axMask{end+1} = nexttile(hTMask);
+imagesc(axMask{end}, PEpos, FEpos, maskBloodOnly, [0 1]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[],'Color','none');
+hold(axMask{end},'on'); plot(axMask{end}, ID/2*cos(theta3), ID/2*sin(theta3), 'm');
+title(axMask{end}, 'blood mask');
+
+axMask{end+1} = nexttile(hTMask);
+imagesc(axMask{end}, PEpos, FEpos, maskTissueOnly, [0 1]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[],'Color','none');
+hold(axMask{end},'on'); plot(axMask{end}, OD/2*cos(theta3), OD/2*sin(theta3), 'm');
+title(axMask{end}, 'tissue mask');
+
+axMask{end+1} = nexttile(hTMask);
+imagesc(axMask{end}, PEpos, FEpos, maskWallLowMag, [0 1]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[],'Color','none');
+hold(axMask{end},'on');
+plot(axMask{end}, ID/2*cos(theta3), ID/2*sin(theta3), 'm');
+plot(axMask{end}, OD/2*cos(theta3), OD/2*sin(theta3), 'm');
+title(axMask{end}, 'wall mask');
+
+% Simulation row — no colorbars
+axMask{end+1} = nexttile(hTMask);
+im = resMatchedSim.magMap;
+imagesc(axMask{end}, PEax3, FEax3, im, [0 max(im(:))]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[]);
+title(axMask{end}, 'simulation mag');
+
+axMask{end+1} = nexttile(hTMask);
+im = resMatchedSim.vMap;
+imagesc(axMask{end}, PEax3, FEax3, im, [-1 1].*max(abs(im(:)))); axis image;
+axMask{end}.Colormap = redblue; set(axMask{end},'XTick',[],'YTick',[]);
+title(axMask{end}, sprintf('simulation vel  vMean=%.1f cm/s', velJointFit.Vmax/2));
+
+axMask{end+1} = nexttile(hTMask);
+imagesc(axMask{end}, PEax3, FEax3, single(resMatchedSim.pVessel.mask.lumen), [0 1]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[]);
+hold(axMask{end},'on'); plot(axMask{end}, ID/2*cos(theta3), ID/2*sin(theta3), 'm');
+title(axMask{end}, 'lumen mask');
+
+axMask{end+1} = nexttile(hTMask);
+imagesc(axMask{end}, PEax3, FEax3, single(resMatchedSim.pVessel.mask.wall), [0 1]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[]);
+hold(axMask{end},'on');
+plot(axMask{end}, ID/2*cos(theta3), ID/2*sin(theta3), 'm');
+plot(axMask{end}, OD/2*cos(theta3), OD/2*sin(theta3), 'm');
+title(axMask{end}, 'wall mask');
+
+axMask{end+1} = nexttile(hTMask);
+imagesc(axMask{end}, PEax3, FEax3, single(resMatchedSim.pVessel.mask.surround), [0 1]); axis image;
+axMask{end}.Colormap = gray; set(axMask{end},'XTick',[],'YTick',[]);
+hold(axMask{end},'on'); plot(axMask{end}, OD/2*cos(theta3), OD/2*sin(theta3), 'm');
+title(axMask{end}, 'surround mask');
+
+% Force identical XLim/YLim within each row so all tiles show exactly the same mm extent
+% (no colorbars means equal tile area; matching limits guarantees equal mm scale)
+phXLim = axMask{1}.XLim; phYLim = axMask{1}.YLim;
+for k = 2:5; set(axMask{k}, 'XLim',phXLim, 'YLim',phYLim); end
+simXLim = axMask{6}.XLim; simYLim = axMask{6}.YLim;
+for k = 7:10; set(axMask{k}, 'XLim',simXLim, 'YLim',simYLim); end
+
+if saveThis || ~exist(fullfile(info.project.figures,'phantomSimMasksSummary.fig'),'file')
+    saveas(        fMask, fullfile(info.project.figures,'phantomSimMasksSummary.fig'));
+    exportgraphics(fMask, fullfile(info.project.figures,'phantomSimMasksSummary.png'));
+    exportgraphics(fMask, fullfile(info.project.figures,'phantomSimMasksSummary.svg'));
+end
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 
 
-
-if 0
-saveThis = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if 1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Load in vivo data -- sub-01 and sub-02
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ROI coordinates (vessels defined in multiVencInVivo project)
 inVivoSubRoiList = {};
 % sub-01: 6 vessels
@@ -948,13 +977,13 @@ for s = 1:2
     subFile = fullfile(inVivoScratch, [inVivoSubNames{s} '.mat']);
     inVivoSubData{s} = load(subFile, 'img', 'imgInfo', 'refImgAv');
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 
-if 0
-saveThis = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if 1
+saveThis = 1;
+%%%%%%%%%%%%%%%%%%%%%%%
 %% Plot in vivo summary -- sub-01 vessel-01, reference mag, velocity map, complex-domain signal
 %    on the model of phantom summary -- ISMRM2026-poster.pptx slide 10
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -971,7 +1000,8 @@ refMag_iv = squeeze(mean(abs(refImgAv), 7));
 
 % Velocity map at middle venc (averaged over runs and repetitions)
 vencList_iv = sort(unique(imgInfo.vencList(isfinite(imgInfo.vencList))));
-vencSel_iv  = vencList_iv(round(end/2));
+% vencSel_iv  = vencList_iv(round(end/2));
+vencSel_iv  = 10;
 refAvg_iv   = squeeze(mean(img(:,:,:,:,:,:,imgInfo.vencList==inf,         :,:,:,:,:,:,:,:,:), [7 11]));
 selAvg_iv   = squeeze(mean(img(:,:,:,:,:,:,imgInfo.vencList==vencSel_iv,  :,:,:,:,:,:,:,:,:), [7 11]));
 velMap_iv   = phase2vel(angle(selAvg_iv ./ refAvg_iv), vencToM1(vencSel_iv));
@@ -1042,7 +1072,7 @@ title(ax_ivs{end}, sprintf('venc=%gcm/s', vencSel_iv));
 
 % Complex-domain signal (3 rows × 3 cols span)
 ax_ivs{end+1} = nexttile(hT_ivs,[3 3]);
-plotComplexDomain(ax_ivs{end}, trjIV(:), 'tight', 'markers');
+plotComplexDomain(ax_ivs{end}, trjIV(:), [], 'tight', 'markers');
 
 % Save
 figName_ivs = [subName '-vessel01-summary'];
@@ -1051,16 +1081,16 @@ if saveThis || ~exist(fullfile(info.project.figures,[figName_ivs '.fig']),'file'
     exportgraphics(f_ivs, fullfile(info.project.figures,[figName_ivs '.png']));
     exportgraphics(f_ivs, fullfile(info.project.figures,[figName_ivs '.svg']));
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%
 end
 
 
 
 if 0
-saveThis = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+saveThis = 1;
+%%%%%%%%%%%%%%%
 %% Plot in vivo -- reference mag, velocity map and complex-domain signal evolution -- ISMRM2026-poster.pptx slide 10 (sub-01) and 11 (sub-02)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%
 if ~exist(info.project.figures,'dir'); mkdir(info.project.figures); end
 
 for s = 1:2
@@ -1147,22 +1177,24 @@ for s = 1:2
         uistack(plot(x,y,'w'),'bottom');
         title(legend(hPcont,trjVencLabel),'V_{enc} (cm/s)');
         vesselFigName = [inVivoSubNames{s} '_vessel-' num2str(roiIdx,'%02d')];
-        if saveThis || ~exist(fullfile(info.project.figures,[vesselFigName '.png']),'file')
+        subFigDir = fullfile(info.project.figures, inVivoSubNames{s});
+        if ~exist(subFigDir,'dir'); mkdir(subFigDir); end
+        if saveThis || ~exist(fullfile(subFigDir,[vesselFigName '.png']),'file')
             drawnow;
-            exportgraphics(hFv, fullfile(info.project.figures,[vesselFigName '.png']));
-            exportgraphics(hFv, fullfile(info.project.figures,[vesselFigName '.svg']));
+            exportgraphics(hFv, fullfile(subFigDir,[vesselFigName '.png']));
+            exportgraphics(hFv, fullfile(subFigDir,[vesselFigName '.svg']));
         end
         close(hFv); clear hPcont d prob
     end
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%
 end
 
 
 
 
 if 0
-saveThis = 0;
+saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Illustrate the effect of inflow on FVE spectrum -- ISMRM2026-poster.pptx slide 12
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1213,9 +1245,10 @@ if saveThis || ~exist(fullfile(info.project.figures,'FVEvelSpec.fig'),'file') ||
     exportgraphics(fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.png'));
     exportgraphics(fVelSpecInflow, fullfile(info.project.figures,'FVEvelSpec_inflow.svg'));
 end
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fVelSpec; % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
 fVelSpecInflow; % Here the weighting effect was maximized using a 90 flip angle for a linear magnitude function of velocity
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
 
 

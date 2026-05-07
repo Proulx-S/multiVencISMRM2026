@@ -35,7 +35,7 @@ velocity peak. The proposed model separates the two.
 | `(eFE, ePE)` | wall-centre offset **relative to** the velocity peak centre |
 | `R` | wall-circle radius |
 | `r_v` | distance of a pixel from the velocity peak centre |
-| `theta_v` | angle of a pixel from the velocity peak centre (`atan2(PE-PEoffset, FE-FEoffset)`) |
+| `theta_v` | angle of a pixel from the velocity peak centre (`-atan2(PE-PEoffset, FE-FEoffset)`) |
 
 Wall circle centre: `(FEoffset + eFE, PEoffset + ePE)`.
 
@@ -83,7 +83,7 @@ a first-order sinusoidal modulation of the effective radius in the direction of 
 
 ```
 r_v      = sqrt((FE - FEoffset)² + (PE - PEoffset)²)
-theta_v  = atan2(PE - PEoffset, FE - FEoffset)
+theta_v  = -atan2(PE - PEoffset, FE - FEoffset)
 p        = eFE·cos(theta_v) + ePE·sin(theta_v)
 R_eff    = p + sqrt(R² - eFE² - ePE² + p²)
 v        = Vmax · max(0, 1 - (r_v / R_eff)²)
@@ -116,7 +116,7 @@ the `r` and `theta` inputs, which the caller computes from the raw grid). They a
 as inert sfit coefficients so they remain accessible via `velFit.FEoffset` / `velFit.PEoffset`.
 
 Calling convention remains `velFit(r, theta)` with `r = sqrt((FE-FEoffset)² + (PE-PEoffset)²)`
-and `theta = atan2(PE-PEoffset, FE-FEoffset)` — same as the current offset fit.
+and `theta = -atan2(PE-PEoffset, FE-FEoffset)` — same as the current offset fit.
 
 **lsqnonlin residuals:** `residuals_joint_asym` takes the full FEPE grid and computes
 r_v and theta_v internally, then calls the model. This avoids passing FEoffset/PEoffset
