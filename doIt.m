@@ -198,20 +198,21 @@ cVes   = [pVesselPlug.ID/2 * cos(theta); pVesselPlug.ID/2 * sin(theta)];
 % Plug vel — row 1, col 1
 ax{end+1} = nexttile(1);
 imagesc(ax{end}, coorPE, coorFE, resPlug.vMap); axis image;
-ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[]);
+ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 ylabel(colorbar(ax{end},'Location','westoutside'), 'velocity [cm/s]');
 title(ax{end}, 'plug | vel');
 
 % Plug mag — row 2, col 1
 ax{end+1} = nexttile(4);
 imagesc(ax{end}, coorPE, coorFE, resPlug.magMap); axis image;
-ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[]);
+ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 ylabel(colorbar(ax{end},'Location','westoutside'), 'MR magn. [a.u.]');
 title(ax{end}, 'plug | mag');
 
 % Plug complex domain — rows 1-2, cols 2-3
 ax{end+1} = nexttile(2,[2 2]);
 plotComplexDomain(ax{end}, resPlug.I, resPlug.pMri.venc.vencList, 'full', 'line');
+set(findobj(ax{end},'Type','line','LineStyle','-'),'Color','g');
 hold(ax{end},'on');
 plot(ax{end},real(mean(resPlug.Is)),imag(mean(resPlug.Is)),'.r')
 set(ax{end},'Box','on','XTick',[],'YTick',[]);
@@ -220,20 +221,21 @@ title(ax{end}, 'plug flow');
 % Lami vel — row 3, col 1
 ax{end+1} = nexttile(7);
 imagesc(ax{end}, coorPE, coorFE, resLami.vMap); axis image;
-ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[]);
+ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 ylabel(colorbar(ax{end},'Location','westoutside'), 'velocity [cm/s]');
 title(ax{end}, 'laminar | vel');
 
 % Lami mag — row 4, col 1
 ax{end+1} = nexttile(10);
 imagesc(ax{end}, coorPE, coorFE, resLami.magMap); axis image;
-ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[]);
+ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 ylabel(colorbar(ax{end},'Location','westoutside'), 'MR magn. [a.u.]');
 title(ax{end}, 'laminar | mag');
 
 % Lami complex domain — rows 3-4, cols 2-3
 ax{end+1} = nexttile(8,[2 2]);
 plotComplexDomain(ax{end}, resLami.I, resLami.pMri.venc.vencList, 'full', 'line');
+set(findobj(ax{end},'Type','line','LineStyle','-'),'Color','g');
 hold(ax{end},'on');
 plot(ax{end},real(mean(resLami.Is)),imag(mean(resLami.Is)),'.r')
 set(ax{end},'Box','on','XTick',[],'YTick',[]);
@@ -247,15 +249,16 @@ cLim = get([ax{[2 5]}],'CLim'); cLim = [ 0 1].*max(    [cLim{:}] ); set([ax{[2 5
 
 set(findall(fSim,'Type','axes'),'FontSize',14);
 set(findall(fSim,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(fSim,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec3fig,'simSummary.fig'),'file')
     saveas(        fSim, fullfile(sec3fig,'simSummary.fig'));
     exportgraphics(fSim, fullfile(sec3fig,'simSummary.png'));
+    hMkr_=findobj(fSim,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(fSim, fullfile(sec3fig,'simSummary.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%
 end
-
-
 
 
 
@@ -320,6 +323,7 @@ B = abs(mean(cNoFlowSpoiled(maskBloodOnly)));
 
 
 % figures
+grayRGB_mask = 0.45 * ones([size(maskWallLowMag), 3]);
 f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 33 16]);
 hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact'); ax = {};
 cx = velJointFit.R * cos(theta) + velJointFit.PEoffset;
@@ -327,11 +331,11 @@ cy = velJointFit.R * sin(theta) + velJointFit.FEoffset;
 
 % ── radial profile of magnitudes ─────────
 ax{end+1} = nexttile(1,[4 4]);
-plot(ax{end}, double(rGridOffset), double(abs(cFlow)), '.w');
+plot(ax{end}, double(rGridOffset), double(abs(cFlow)), '.g');
 hold(ax{end},'on');
 plot(ax{end}, double(rGridOffset), double(abs(cFlowSpoiled)), '.m');
 r = linspace(0,velJointFit.R,100);
-plot(ax{end}, r, magJoinFit(velJointFit1D(r)),'-w');
+plot(ax{end}, r, magJoinFit(velJointFit1D(r)),'-g');
 plot(ax{end}, r, magSpoilFitFixBR(r),'-m');
 xline(velJointFit1D.R,':'); xline(magWallTissueFit.rWO,':');
 axis square tight; xlabel('radial position [mm]'); ylabel('MR mag');
@@ -348,13 +352,14 @@ ax{end+1} = nexttile(6);
 imagesc(ax{end}, PEpos, FEpos, angle(im), [-pi pi]); axis image;
 ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[]);
 ylabel(colorbar(ax{end}), 'phase [rad]');
+hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 title(ax{end}, 'no-flow | venc=\infty | phase');
 
 % ── flow venc==inf maps ─────────
 im = mean(data(:,:,dataVenc==inf),3);
 ax{end+1} = nexttile(11);
 imagesc(ax{end}, PEpos, FEpos, abs(im)); axis image;
-ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[]);
+ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 ylabel(colorbar(ax{end}), 'MR magn. [a.u.]');
 title(ax{end}, 'flow | venc=\infty | mag');
 
@@ -362,6 +367,7 @@ ax{end+1} = nexttile(12);
 imagesc(ax{end}, PEpos, FEpos, angle(im), [-pi pi]); axis image;
 ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[]);
 ylabel(colorbar(ax{end}), 'phase [rad]');
+hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 title(ax{end}, 'flow | venc=\infty | phase');
 
 % ── flow venc==bestVenc maps ─────────
@@ -376,13 +382,14 @@ ax{end+1} = nexttile(18);
 imagesc(ax{end}, PEpos, FEpos, angle(im), [-pi pi]); axis image;
 ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[]);
 ylabel(colorbar(ax{end}), 'phase [rad]');
+hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 title(ax{end}, ['flow | venc=' num2str(bestVenc) ' cm/s | phase']);
 
 % ── flow venc==min maps ─────────
 im = mean(data(:,:,dataVenc==2),3);
 ax{end+1} = nexttile(23);
 imagesc(ax{end}, PEpos, FEpos, abs(im)); axis image;
-ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[]);
+ax{end}.Colormap = gray; set(ax{end},'XTick',[],'YTick',[],'Box','on','XColor','m','YColor','m','LineWidth',2);
 ylabel(colorbar(ax{end}), 'MR magn. [a.u.]');
 title(ax{end}, 'flow | venc=min | mag');
 
@@ -390,16 +397,20 @@ ax{end+1} = nexttile(24);
 imagesc(ax{end}, PEpos, FEpos, angle(im), [-pi pi]); axis image;
 ax{end}.Colormap = blueBlackRed; set(ax{end},'XTick',[],'YTick',[]);
 ylabel(colorbar(ax{end}), 'phase [rad]');
+hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 title(ax{end}, 'flow | venc=min | phase');
 
 % harmonize magnitude CLims across all mag tiles (ax{2,4,6,8})
 cLim = get([ax{[2 4 6 8]}],'CLim'); cLim = [0 1].*max([cLim{:}]); set([ax{[2 4 6 8]}],'CLim',cLim);
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec5fig,'magPhaseMaps.fig'),'file')
     saveas(        f, fullfile(sec5fig,'magPhaseMaps.fig'));
     exportgraphics(f, fullfile(sec5fig,'magPhaseMaps.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f, fullfile(sec5fig,'magPhaseMaps.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -433,16 +444,16 @@ cLim = get([ax{end-1:end}],'CLim'); cLim=[0 1].*max([cLim{:}]); set([ax{end-1:en
 % ── velocity images ───────────────────────────────
 % phantom
 ax{end+1} = nexttile(4);
-imagesc(PEpos,FEpos,vFlow,[-1 1].*max(vFlow(maskBloodOnly))); axis image;
-ax{end}.Colormap = blueBlackRed; colorbar;
+imagesc(PEpos,FEpos,vFlow,[-bestVenc bestVenc]); axis image;
+ax{end}.Colormap = blueBlackRed; colorbar; set(ax{end},'XTick',[],'YTick',[]);
+hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 title(ax{end},'measured vel');
 % matched sim
 ax{end+1} = nexttile(5);
-imagesc(PEpos,FEpos,reshape(velJointFit(rGrid(:),pGrid(:)),size(rGrid))); axis image;
-ax{end}.Colormap = blueBlackRed; colorbar;
+imagesc(PEpos,FEpos,reshape(velJointFit(rGrid(:),pGrid(:)),size(rGrid)),[-bestVenc bestVenc]); axis image;
+ax{end}.Colormap = blueBlackRed; colorbar; set(ax{end},'XTick',[],'YTick',[]);
+hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 title(ax{end},'fitted vel');
-
-cLim = get([ax{end-1:end}],'CLim'); cLim=[-1 1].*max(abs([cLim{:}])); set([ax{end-1:end}],'CLim',cLim);
 
 % ── magnitude function of velocity ────────────────
 % phantom data scatter + fit line
@@ -509,13 +520,17 @@ ylabel('velocity [cm/s]')
 
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec5fig,'radialProfilesFits.fig'),'file')
     saveas(        f, fullfile(sec5fig,'radialProfilesFits.fig'));
     exportgraphics(f, fullfile(sec5fig,'radialProfilesFits.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f, fullfile(sec5fig,'radialProfilesFits.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec5fig,'radialProfilesFits.mat'),'file')
     save(fullfile(sec5fig,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
 end
@@ -547,7 +562,9 @@ sec5fig = fullfile(info.project.figures, '5-radial-profiles-and-fits');
 load(fullfile(sec5fig,'radialProfilesFits.mat'), 'velJointFit', 'magJoinFit', 'velJointFit1D', 'magWallTissueFit');
 m = abs(mean(data(:,:,dataVenc==inf),3));
 [maskBloodOnly, ~, ~, maskTissueOnly, maskWallLowMag] = makeVesselMasks(FEgrid - velJointFit.FEoffset, PEgrid - velJointFit.PEoffset, FEspacing, PEspacing, velJointFit.R*2, velJointFit.R*2+magWallTissueFit.dr*2, m);
-
+% Use nominal ID/OD for the visual wall overlay (fitted outer boundary is too thin)
+[~,~,~,~,maskWallLowMag_ovl] = makeVesselMasks(FEgrid, PEgrid, FEspacing, PEspacing, ID, OD, m);
+grayRGB_mask = 0.45 * ones([size(maskWallLowMag_ovl), 3]);
 % --- Simulation: setup matched to joint fit ---
 p       = runSim;
 pSim    = p.pSim;
@@ -619,46 +636,51 @@ axComb{end+1} = nexttile(hTComb, 1, [2 1]);
 im = abs(mean(data(:,:,dataVenc==inf),3));
 imagesc(axComb{end}, PEpos, FEpos, im, [0 max(im(:))]); axis image;
 ylabel(colorbar(axComb{end},'Location','westoutside'), 'MR magn. [a.u.]');
-axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[]);
+axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','m','YColor','m','LineWidth',2);
 title(axComb{end}, 'phantom ROI');
 
 % Phantom vel — rows 3-4, col 1
 axComb{end+1} = nexttile(hTComb, 9, [2 1]);
 im = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)),vencToM1(bestVenc));
-imagesc(axComb{end}, PEpos, FEpos, im, [-1 1].* max(abs(im(:)))); axis image;
+imagesc(axComb{end}, PEpos, FEpos, im, [-bestVenc bestVenc]); axis image;
 ylabel(colorbar(axComb{end},'Location','westoutside'), 'velocity [cm/s]');
-axComb{end}.Colormap = blueBlackRed; set(axComb{end},'XTick',[],'YTick',[]);
+axComb{end}.Colormap = blueBlackRed; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','m','YColor','m','LineWidth',2);
+hold(axComb{end},'on'); h_ov=image(axComb{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag_ovl);
 title(axComb{end}, ['venc=' num2str(bestVenc) ' cm/s']);
 
 % Sim mag — rows 1-2, col 2 (no colorbar)
 axComb{end+1} = nexttile(hTComb, 2, [2 1]);
 im = resMatchedSim.magMap;
 imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im, [0 max(im(:))]); axis image;
-axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[]);
+axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 title(axComb{end}, 'simulation ROI');
 
 % Sim vel — rows 3-4, col 2 (no colorbar)
 axComb{end+1} = nexttile(hTComb, 10, [2 1]);
 im = resMatchedSim.vMap;
 imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im, [-1 1].*max(abs(im(:)))); axis image;
-axComb{end}.Colormap = blueBlackRed; set(axComb{end},'XTick',[],'YTick',[]);
+axComb{end}.Colormap = blueBlackRed; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 title(axComb{end}, sprintf('joint fit: vMean=%.1f cm/s, R=%.1f mm', velJointFit.Vmax/2, velJointFit.R));
 
 % Complex domain — rows 1-4, cols 3-4
 axComb{end+1} = nexttile(hTComb, 3, [4 2]);
 plotComplexDomain(axComb{end}, sum(data, [1 2]), dataVenc, 'full', 'markers');
+set(findobj(axComb{end},'Type','line','Marker','o'),'MarkerFaceColor','m','MarkerEdgeColor','k');
 hold(axComb{end}, 'on');
-plot(axComb{end}, real(squeeze(resMatchedSim.I)), imag(squeeze(resMatchedSim.I)), 'c-', 'LineWidth', 1.5);
+plot(axComb{end}, real(squeeze(resMatchedSim.I)), imag(squeeze(resMatchedSim.I)), 'g-', 'LineWidth', 1.5);
 hold(axComb{end}, 'off');
 legend(axComb{end}, {'phantom','simulation'}, 'Location','best', 'TextColor','w', 'Color','k');
 title(axComb{end}, 'complex-domain ROI signal');
 
 set(findall(fComb,'Type','axes'),'FontSize',14);
 set(findall(fComb,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(fComb,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec4fig,'phantomSimCombinedSummary.fig'),'file')
     saveas(        fComb, fullfile(sec4fig,'phantomSimCombinedSummary.fig'));
     exportgraphics(fComb, fullfile(sec4fig,'phantomSimCombinedSummary.png'));
+    hMkr_=findobj(fComb,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(fComb, fullfile(sec4fig,'phantomSimCombinedSummary.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 %
@@ -683,8 +705,9 @@ title(axMask{end}, 'phantom mag');
 
 axMask{end+1} = nexttile(hTMask);
 im = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)), vencToM1(bestVenc));
-imagesc(axMask{end}, PEpos, FEpos, im, [-1 1].*max(abs(im(:)))); axis image;
+imagesc(axMask{end}, PEpos, FEpos, im, [-bestVenc bestVenc]); axis image;
 axMask{end}.Colormap = blueBlackRed; set(axMask{end},'XTick',[],'YTick',[]);
+hold(axMask{end},'on'); h_ov=image(axMask{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag_ovl);
 title(axMask{end}, ['phantom vel  venc=' num2str(bestVenc) ' cm/s']);
 
 axMask{end+1} = nexttile(hTMask);
@@ -741,10 +764,13 @@ for k = 7:10; set(axMask{k}, 'XLim',simXLim, 'YLim',simYLim); end
 
 set(findall(fMask,'Type','axes'),'FontSize',14);
 set(findall(fMask,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(fMask,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec4fig,'phantomSimMasksSummary.fig'),'file')
     saveas(        fMask, fullfile(sec4fig,'phantomSimMasksSummary.fig'));
     exportgraphics(fMask, fullfile(sec4fig,'phantomSimMasksSummary.png'));
+    hMkr_=findobj(fMask,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(fMask, fullfile(sec4fig,'phantomSimMasksSummary.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end % section 4
@@ -827,10 +853,13 @@ axRoi.CLim = [0, 0.5*max(hIm_roi.CData(:))];
 figName_roi = [subName '-vessel01-roiOverlay'];
 set(findall(hFroi,'Type','axes'),'FontSize',14);
 set(findall(hFroi,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(hFroi,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec6fig,[figName_roi '.png']),'file')
     drawnow;
     exportgraphics(hFroi, fullfile(sec6fig,[figName_roi '.png']));
+    hMkr_=findobj(hFroi,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(hFroi, fullfile(sec6fig,[figName_roi '.svg']));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 close(hFroi);
 
@@ -862,14 +891,14 @@ imagesc(ax_ivs{end}, refMag_iv, [0, 0.5*max(refMag_iv(:))]);
 set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1]);
 hold(ax_ivs{end},'on');
 plot(ax_ivs{end}, [roiX(1)-.5 roiX(2)+.5 roiX(2)+.5 roiX(1)-.5 roiX(1)-.5], ...
-                  [roiY(1)-.5 roiY(1)-.5 roiY(2)+.5 roiY(2)+.5 roiY(1)-.5], 'c', 'LineWidth', 1);
+                  [roiY(1)-.5 roiY(1)-.5 roiY(2)+.5 roiY(2)+.5 roiY(1)-.5], 'g', 'LineWidth', 1);
 title(ax_ivs{end}, [subName ' vessel 01']);
 
 % ROI crop -- reference magnitude — bottom-left 2×2
 ax_ivs{end+1} = nexttile(hT_ivs, 41, [2 2]);
 refMagCrop_iv = refMag_iv(roiY(1):roiY(2), roiX(1):roiX(2));
 imagesc(ax_ivs{end}, refMagCrop_iv, [0, max(refMagCrop_iv(:))]);
-set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1]);
+set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',gray,'DataAspectRatio',[imgInfo.res 1],'Box','on','XColor','g','YColor','g','LineWidth',2);
 xlabel(colorbar(ax_ivs{end},'Location','southoutside'), 'MR magn. [a.u.]');
 
 % ROI crop -- velocity map — bottom-right 2×2
@@ -877,22 +906,26 @@ ax_ivs{end+1} = nexttile(hT_ivs, 43, [2 2]);
 velCrop_iv = velMap_iv(roiY(1):roiY(2), roiX(1):roiX(2));
 vLim_ivs = max(abs(velCrop_iv(:)));
 imagesc(ax_ivs{end}, velCrop_iv, [-vLim_ivs vLim_ivs]);
-set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',blueBlackRed,'DataAspectRatio',[imgInfo.res 1]);
+set(ax_ivs{end},'XTick',[],'YTick',[],'Colormap',blueBlackRed,'DataAspectRatio',[imgInfo.res 1],'Box','on','XColor','g','YColor','g','LineWidth',2);
 xlabel(colorbar(ax_ivs{end},'Location','southoutside'), 'velocity [cm/s]');
 
 % Complex-domain signal — right 6×6
 ax_ivs{end+1} = nexttile(hT_ivs, 5, [6 6]);
 plotComplexDomain(ax_ivs{end}, trjIV(:), [], 'full', 'markers');
+set(findobj(ax_ivs{end},'Type','line','Marker','o'),'MarkerFaceColor','g','MarkerEdgeColor','k');
 set(ax_ivs{end}, 'XTick', [], 'YTick', [], 'Box', 'on');
 
 % Save
 figName_ivs = [subName '-vessel01-summary'];
 set(findall(f_ivs,'Type','axes'),'FontSize',14);
 set(findall(f_ivs,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f_ivs,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec6fig,[figName_ivs '.fig']),'file')
     saveas(        f_ivs, fullfile(sec6fig,[figName_ivs '.fig']));
     exportgraphics(f_ivs, fullfile(sec6fig,[figName_ivs '.png']));
+    hMkr_=findobj(f_ivs,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f_ivs, fullfile(sec6fig,[figName_ivs '.svg']));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -960,13 +993,18 @@ set(findall(fVelSpec,      'Type','axes'),'FontSize',14);
 set(findall(fVelSpec,      'Type','text'),'FontSize',8);
 set(findall(fVelSpecInflow,'Type','axes'),'FontSize',14);
 set(findall(fVelSpecInflow,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(fVelSpecInflow,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec8fig,'FVEvelSpec.fig'),'file') || ~exist(fullfile(sec8fig,'FVEvelSpec_inflow.fig'),'file')
     saveas(        fVelSpec      , fullfile(sec8fig,'FVEvelSpec.fig'       ));
     exportgraphics(fVelSpec      , fullfile(sec8fig,'FVEvelSpec.png'       ));
+    hMkr_=findobj(fVelSpec,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(fVelSpec      , fullfile(sec8fig,'FVEvelSpec.svg'       ));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
     saveas(        fVelSpecInflow, fullfile(sec8fig,'FVEvelSpec_inflow.fig'));
     exportgraphics(fVelSpecInflow, fullfile(sec8fig,'FVEvelSpec_inflow.png'));
+    hMkr_=findobj(fVelSpecInflow,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(fVelSpecInflow, fullfile(sec8fig,'FVEvelSpec_inflow.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 % FVE spectra reflects spin velocity distribution, but weighted by velocity-dependent spin magnitude
 fVelSpec;
@@ -987,6 +1025,7 @@ sec9fig = fullfile(info.project.figures, '9-phantom-details');
 if ~exist(sec9fig,'dir'); mkdir(sec9fig); end
 m = abs(mean(data(:,:,dataVenc==inf),3));
 [maskBloodOnly, ~, ~, maskTissueOnly, maskWallLowMag] = makeVesselMasks(FEgrid, PEgrid, FEspacing, PEspacing, ID, OD, m);
+grayRGB_mask = 0.45 * ones([size(maskWallLowMag), 3]);
 % Mag flow on
 f = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 24 16]);
 hT = tiledlayout(f,4,6,'TileSpacing','compact','Padding','compact','TileIndexing','columnmajor'); ax = {};
@@ -1022,10 +1061,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'magFlowOn.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'magFlowOn.fig'       ));
     exportgraphics(f      , fullfile(sec9fig,'magFlowOn.png'       ));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'magFlowOn.svg'       ));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -1062,10 +1104,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'magFlowOff.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'magFlowOff.fig'));
     exportgraphics(f      , fullfile(sec9fig,'magFlowOff.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'magFlowOff.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -1086,6 +1131,7 @@ for vencIdx = 1:size(vencList,1)
         cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
     end
     ax{end}.Colormap = blueBlackRed;
+    hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 end
 
 ax{end+1} = nexttile;
@@ -1103,10 +1149,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'phaseFlowOn.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'phaseFlowOn.fig'));
     exportgraphics(f      , fullfile(sec9fig,'phaseFlowOn.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'phaseFlowOn.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -1128,6 +1177,7 @@ for vencIdx = 1:size(vencList,1)
         cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
     end
     ax{end}.Colormap = blueBlackRed;
+    hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
 end
 
 ax{end+1} = nexttile;
@@ -1145,10 +1195,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'phaseFlowOff.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'phaseFlowOff.fig'));
     exportgraphics(f      , fullfile(sec9fig,'phaseFlowOff.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'phaseFlowOff.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -1177,12 +1230,13 @@ for vencIdx = 1:size(vencList,1)
         ylabel(cb, 'velocity [cm/s]');
     end
     ax{end}.Colormap = blueBlackRed;
+    if isfinite(vencList(vencIdx)); set(ax{end},'CLim',[-vencList(vencIdx) vencList(vencIdx)]); else; set(ax{end},'CLim',[-9 9]); end
+    hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
     % cb.Ticks = -pi:pi/2:pi;
     % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
     cLim{vencIdx} = clim(ax{end});
 end
 % cLim = abs([CDvel{:}]); cLim = [-1 1].*max((tmp(cLim~=inf)));
-set([ax{:}],'CLim',[-9 9]);
 
 ax{end+1} = nexttile;
 imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
@@ -1199,10 +1253,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'CDvelFlowOn.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'CDvelFlowOn.fig'));
     exportgraphics(f      , fullfile(sec9fig,'CDvelFlowOn.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'CDvelFlowOn.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -1224,10 +1281,11 @@ for vencIdx = 1:size(vencList,1)
         ylabel(cb, 'PD velocity [cm/s]');
     end
     ax{end}.Colormap = blueBlackRed;
+    if isfinite(vencList(vencIdx)); set(ax{end},'CLim',[-vencList(vencIdx) vencList(vencIdx)]); else; set(ax{end},'CLim',[-9 9]); end
+    hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
     % cb.Ticks = -pi:pi/2:pi;
     % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
 end
-set([ax{:}],'CLim',[-1 1].*9);
 
 ax{end+1} = nexttile;
 imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
@@ -1244,10 +1302,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'PDvelFlowOn.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'PDvelFlowOn.fig'));
     exportgraphics(f      , fullfile(sec9fig,'PDvelFlowOn.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'PDvelFlowOn.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 
@@ -1269,10 +1330,11 @@ for vencIdx = 1:size(vencList,1)
         ylabel(cb, 'PD velocity [cm/s]');
     end
     ax{end}.Colormap = blueBlackRed;
+    if isfinite(vencList(vencIdx)); set(ax{end},'CLim',[-vencList(vencIdx) vencList(vencIdx)]); else; set(ax{end},'CLim',[-9 9]); end
+    hold(ax{end},'on'); h_ov=image(ax{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag);
     % cb.Ticks = -pi:pi/2:pi;
     % cb.TickLabels = {'-\pi','-\pi/2','0','\pi/2','\pi'};
 end
-set([ax{:}],'CLim',[-1 1].*9);
 
 ax{end+1} = nexttile;
 imagesc(ax{end},PEpos,FEpos,maskBloodOnly)
@@ -1289,10 +1351,13 @@ title(ax{end},'blood-only mask');
 %save
 set(findall(f,'Type','axes'),'FontSize',14);
 set(findall(f,'Type','text'),'FontSize',8);
+arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(f,'Type','colorbar'));
 if saveThis || ~exist(fullfile(sec9fig,'PvelFlowOn.fig'),'file')
     saveas(        f      , fullfile(sec9fig,'PvelFlowOn.fig'));
     exportgraphics(f      , fullfile(sec9fig,'PvelFlowOn.png'));
+    hMkr_=findobj(f,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
     exportgraphics(f      , fullfile(sec9fig,'PvelFlowOn.svg'));
+    set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
 end
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1330,10 +1395,13 @@ for s = 1:2
     set(hBox,'LineWidth',0.5);
     set(findall(hF,'Type','axes'),'FontSize',14);
     set(findall(hF,'Type','text'),'FontSize',8);
+    arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(hF,'Type','colorbar'));
     if saveThis || ~exist(fullfile(sec10fig,[inVivoSubNames{s} '-roiOverlay.png']),'file')
         drawnow;
         exportgraphics(hF, fullfile(sec10fig,[inVivoSubNames{s} '-roiOverlay.png']));
+        hMkr_=findobj(hF,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
         exportgraphics(hF, fullfile(sec10fig,[inVivoSubNames{s} '-roiOverlay.svg']));
+        set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
     end
     close(hF); clear hBox hText
 
@@ -1397,10 +1465,13 @@ for s = 1:2
         if ~exist(subFigDir,'dir'); mkdir(subFigDir); end
         set(findall(hFv,'Type','axes'),'FontSize',14);
         set(findall(hFv,'Type','text'),'FontSize',8);
+        arrayfun(@(cb) set(cb.Label,'FontSize',12), findobj(hFv,'Type','colorbar'));
         if saveThis || ~exist(fullfile(subFigDir,[vesselFigName '.png']),'file')
             drawnow;
             exportgraphics(hFv, fullfile(subFigDir,[vesselFigName '.png']));
+            hMkr_=findobj(hFv,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
             exportgraphics(hFv, fullfile(subFigDir,[vesselFigName '.svg']));
+            set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
         end
         close(hFv); clear hPcont d prob
     end
