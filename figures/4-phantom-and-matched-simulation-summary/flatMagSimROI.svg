@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="69.4972mm" height="62.4417mm"
+ viewBox="0 0 197 177"
+ xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"  version="1.2" baseProfile="tiny">
+<title>Qt SVG Document</title>
+<desc>MATLAB, The MathWorks, Inc. Version 25.1.0.2973910 R2025a Update 1</desc>
+<defs>
+<pattern id="fillPattern24_" x="43" y="56.2451" width="254" height="213" patternUnits="userSpaceOnUse" >
+<image xlink:href="data:image/png;base64, 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" x="0" y="0" width="254" height="213" />
+</pattern>
+</defs>
+<g fill="none" stroke="black" stroke-width="1" fill-rule="evenodd" stroke-linecap="square" stroke-linejoin="bevel" >
+
+<g fill="#000000" fill-opacity="1" stroke="none" transform="matrix(0.757895,0,0,0.757895,-30.0737,-30.0373)"
+font-family="Sans Serif" font-size="9" font-weight="400" font-style="normal" 
+>
+<path vector-effect="none" fill-rule="evenodd" d="M38,38 L299,38 L299,272 L38,272 L38,38"/>
+</g>
+
+<g fill="#121212" fill-opacity="1" stroke="none" transform="matrix(7.57895e-05,0,0,7.57895e-05,-30.0737,-30.0373)"
+font-family="Sans Serif" font-size="9" font-weight="400" font-style="normal" 
+>
+<path vector-effect="none" fill-rule="evenodd" d="M430000,562451 L430000,2.68755e+06 L2.96e+06,2.68755e+06 L2.96e+06,562451 L430000,562451"/>
+</g>
+
+<g fill="#d9d9d9" fill-opacity="1" stroke="#d9d9d9" stroke-opacity="1" stroke-width="1" stroke-linecap="square" stroke-linejoin="bevel" transform="matrix(0.757895,0,0,0.757895,59.737,8.33684)"
+font-family="Helvetica" font-size="13" font-weight="700" font-style="normal" 
+>
+<text fill="#d9d9d9" fill-opacity="1" stroke="none" xml:space="preserve" x="0" y="0" font-family="Helvetica" font-size="13" font-weight="700" font-style="normal" 
+ >flat mag sim ROI</text>
+</g>
+
+<g fill="url(#fillPattern24_)" stroke="none" transform="matrix(0.757895,0,0,0.757895,-30.0737,-30.0373)"
+font-family="Helvetica" font-size="13" font-weight="700" font-style="normal" 
+>
+<path vector-effect="none" fill-rule="evenodd" d="M296,56.2451 L43,56.2451 L43,268.755 L296,268.755 L296,56.2451"/>
+</g>
+
+<g fill="#00ff00" fill-opacity="1" stroke="#00ff00" stroke-opacity="1" stroke-width="2.63889" stroke-linecap="square" stroke-linejoin="round" transform="matrix(0.757895,0,0,0.757895,-30.0737,-30.0373)"
+font-family="Helvetica" font-size="13" font-weight="700" font-style="normal" 
+>
+<polyline fill="none" vector-effect="none" points="43,268.755 296,268.755 " />
+<polyline fill="none" vector-effect="none" points="43,56.2451 296,56.2451 " />
+<polyline fill="none" vector-effect="none" points="43,56.2451 43,268.755 " />
+<polyline fill="none" vector-effect="none" points="296,56.2451 296,268.755 " />
+</g>
+</g>
+</svg>

@@ -553,7 +553,7 @@ if 1
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 4 - phantom and matched simulation summary
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sec4fig = fullfile(info.project.figures, '4-phantom-and-matched-simulation-summary');
 if ~exist(sec4fig,'dir'); mkdir(sec4fig); end
 sec5fig = fullfile(info.project.figures, '5-radial-profiles-and-fits');
@@ -627,7 +627,6 @@ resMatchedSim_flatMag = runSim(pVessel_flatMag, pSim, pMri, [], false);
 
 
 
-
 %
 % Figure 1: combined summary — 4×4 row-major
 %   col 1: phantom maps  [2×1 each], colorbar west
@@ -663,13 +662,18 @@ imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spin
 axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 title(axComb{end}, 'simulation ROI');
 
-% Flat mag sim (hidden) — same position as Sim mag; toggle visibility in SVG editor to reveal
-ax_flatMag = axes(fComb, 'Units', axComb{end}.Units, 'Position', axComb{end}.Position);
+% Flat mag sim — separate figure
+fFlatMag = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 8.75 9]); axComb_flatMap = {};
+axComb_flatMap{end+1} = axes;
 im_flatMag = resMatchedSim_flatMag.magMap;
-imagesc(ax_flatMag, resMatchedSim_flatMag.pSim.spinGrid.coorPE, resMatchedSim_flatMag.pSim.spinGrid.coorFE, im_flatMag, [0 max(im_flatMag(:))]); axis(ax_flatMag, 'image');
-ax_flatMag.Colormap = gray; set(ax_flatMag, 'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
-set(findall(ax_flatMag), 'Visible', 'off');
-uistack(ax_flatMag, 'bottom');
+imagesc(resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im_flatMag, [0 max(im(:))]); axis image;
+axComb_flatMap{end}.Colormap = gray; set(axComb_flatMap{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
+title(axComb_flatMap{end},'flat mag sim ROI');
+if saveThis || ~exist(fullfile(sec4fig,'flatMagSimROI.fig'),'file')
+    saveas(        fFlatMag, fullfile(sec4fig,'flatMagSimROI.fig'));
+    exportgraphics(fFlatMag, fullfile(sec4fig,'flatMagSimROI.png'));
+    exportgraphics(fFlatMag, fullfile(sec4fig,'flatMagSimROI.svg'));
+end
 
 % Sim vel
 axComb{end+1} = nexttile(hTComb, 10, [2 1]);
