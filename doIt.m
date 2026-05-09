@@ -265,7 +265,7 @@ end
 
 
 if 1
-saveThis = 1;
+saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 5 - radial profiles and fits
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -547,7 +547,7 @@ end
 end % section 5
 
 
-return
+
 
 if 1
 saveThis = 1;
@@ -793,7 +793,7 @@ end
 end % section 4
 
 
-
+return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Load in vivo data -- sub-01 and sub-02
