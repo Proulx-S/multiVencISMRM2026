@@ -72,7 +72,7 @@ info.toClean = {};
 
 
 
-if 1
+if 0
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 1 - motivation and goal
 %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -83,7 +83,7 @@ end
 
 
 
-if 1
+if 0
 %%%%%%%%%%%%%%%%%%%%%%%
 %% 2 - hamilton context
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -141,7 +141,7 @@ clear dFE dPE d_far d_near M com total
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 3 - education simulations
@@ -547,7 +547,7 @@ end
 end % section 5
 
 
-
+return
 
 if 1
 saveThis = 1;
@@ -619,6 +619,14 @@ pVessel.S.surround = magWallTissueFit.pHigh;
 resMatchedSim = runSim(pVessel, pSim, pMri, [], false);
 
 
+% Run matched simulation -- with a flat magnitude profile
+pVessel_flatMag = pVessel;
+pVessel_flatMag.S.lumen = mean(resMatchedSim.pVessel.S.lumen);
+resMatchedSim_flatMag = runSim(pVessel_flatMag, pSim, pMri, [], false);
+
+
+
+
 
 %
 % Figure 1: combined summary — 4×4 row-major
@@ -631,7 +639,7 @@ fComb  = figure('MenuBar','none','ToolBar','none','Units','centimeters','Positio
 hTComb = tiledlayout(fComb, 4, 4, 'TileSpacing','compact','Padding','compact');
 axComb = {};
 
-% Phantom mag — rows 1-2, col 1
+% Phantom mag
 axComb{end+1} = nexttile(hTComb, 1, [2 1]);
 im = abs(mean(data(:,:,dataVenc==inf),3));
 imagesc(axComb{end}, PEpos, FEpos, im, [0 max(im(:))]); axis image;
@@ -639,7 +647,7 @@ ylabel(colorbar(axComb{end},'Location','westoutside'), 'MR magn. [a.u.]');
 axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','m','YColor','m','LineWidth',2);
 title(axComb{end}, 'phantom ROI');
 
-% Phantom vel — rows 3-4, col 1
+% Phantom vel
 axComb{end+1} = nexttile(hTComb, 9, [2 1]);
 im = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)),vencToM1(bestVenc));
 imagesc(axComb{end}, PEpos, FEpos, im, [-bestVenc bestVenc]); axis image;
@@ -648,28 +656,37 @@ axComb{end}.Colormap = blueBlackRed; set(axComb{end},'XTick',[],'YTick',[],'Box'
 hold(axComb{end},'on'); h_ov=image(axComb{end},PEpos,FEpos,grayRGB_mask); h_ov.AlphaData=double(maskWallLowMag_ovl);
 title(axComb{end}, ['venc=' num2str(bestVenc) ' cm/s']);
 
-% Sim mag — rows 1-2, col 2 (no colorbar)
+% Sim mag
 axComb{end+1} = nexttile(hTComb, 2, [2 1]);
 im = resMatchedSim.magMap;
 imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im, [0 max(im(:))]); axis image;
 axComb{end}.Colormap = gray; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 title(axComb{end}, 'simulation ROI');
 
-% Sim vel — rows 3-4, col 2 (no colorbar)
+% Flat mag sim (hidden) — same position as Sim mag; toggle visibility in SVG editor to reveal
+ax_flatMag = axes(fComb, 'Units', axComb{end}.Units, 'Position', axComb{end}.Position);
+im_flatMag = resMatchedSim_flatMag.magMap;
+imagesc(ax_flatMag, resMatchedSim_flatMag.pSim.spinGrid.coorPE, resMatchedSim_flatMag.pSim.spinGrid.coorFE, im_flatMag, [0 max(im_flatMag(:))]); axis(ax_flatMag, 'image');
+ax_flatMag.Colormap = gray; set(ax_flatMag, 'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
+set(findall(ax_flatMag), 'Visible', 'off');
+uistack(ax_flatMag, 'bottom');
+
+% Sim vel
 axComb{end+1} = nexttile(hTComb, 10, [2 1]);
 im = resMatchedSim.vMap;
 imagesc(axComb{end}, resMatchedSim.pSim.spinGrid.coorPE, resMatchedSim.pSim.spinGrid.coorFE, im, [-1 1].*max(abs(im(:)))); axis image;
 axComb{end}.Colormap = blueBlackRed; set(axComb{end},'XTick',[],'YTick',[],'Box','on','XColor','g','YColor','g','LineWidth',2);
 title(axComb{end}, sprintf('joint fit: vMean=%.1f cm/s, R=%.1f mm', velJointFit.Vmax/2, velJointFit.R));
 
-% Complex domain — rows 1-4, cols 3-4
+% Complex domain
 axComb{end+1} = nexttile(hTComb, 3, [4 2]);
 plotComplexDomain(axComb{end}, sum(data, [1 2]), dataVenc, 'full', 'markers');
 set(findobj(axComb{end},'Type','line','Marker','o'),'MarkerFaceColor','m','MarkerEdgeColor','k');
 hold(axComb{end}, 'on');
 plot(axComb{end}, real(squeeze(resMatchedSim.I)), imag(squeeze(resMatchedSim.I)), 'g-', 'LineWidth', 1.5);
+plot(axComb{end}, real(squeeze(resMatchedSim_flatMag.I)), imag(squeeze(resMatchedSim_flatMag.I)), 'c-', 'LineWidth', 1.5);
 hold(axComb{end}, 'off');
-legend(axComb{end}, {'phantom','simulation'}, 'Location','best', 'TextColor','w', 'Color','k');
+legend(axComb{end}, {'phantom','simulation','flat mag sim'}, 'Location','best', 'TextColor','w', 'Color','k');
 title(axComb{end}, 'complex-domain ROI signal');
 
 set(findall(fComb,'Type','axes'),'FontSize',14);
