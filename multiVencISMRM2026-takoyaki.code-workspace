@@ -17,22 +17,6 @@
 			"path": "."
 		},
 		{
-			"name": "projects/multiVencInVivo",
-			"path": "../multiVencInVivo"
-		},
-		{
-			"name": "projects/microscopyValidation",
-			"path": "../microscopyValidation"
-		},
-		{
-			"name": "projects/multiVenc",
-			"path": "../multiVenc"
-		},
-		{
-			"name": "tools/multiVencSim",
-			"path": "../../tools/multiVencSim"
-		},
-		{
 			"name": "tools/pcMRAsim",
 			"path": "../../tools/pcMRAsim"
 		},
