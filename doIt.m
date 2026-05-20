@@ -53,9 +53,11 @@ if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' toolURL ' ' full
 
 %%% matlab others
 % blueBlackRed (in util) auto-downloads Colorspace-Transformations on first call
-tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-multiVencISMRM2026';
+tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-postISMRM';
 gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
-tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-multiVencISMRM2026';
+tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-postISMRM';
+gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+tool = 'multiVencSim'; repoURL = 'https://github.com/Proulx-S/multiVencSim.git'; subTool = ''; branch = 'dev-postISMRM';
 gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
 %% %%%%%%%%%%%%%%%%%%
 disp(projectCode)
