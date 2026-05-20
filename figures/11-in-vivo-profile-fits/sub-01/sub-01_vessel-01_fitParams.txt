@@ -1,0 +1,23 @@
+=== Fit A: joint real residual (single best VENC) ===
+Parameter       Units                 LB       Initial         Final              
+--------------------------------------------------------------------------------
+Vmax            cm/s                   0         8.848         9.049
+R               mm                 1e-06         2.222         2.325
+AR              -                      1             1         1.271
+alpha           rad               -3.142             0        -1.513
+B               a.u.                   0     2.516e-08     2.398e-08
+C1              a.u.                -Inf             0     7.507e-08
+C2              a.u.                -Inf             0    -1.195e-09
+FEoffset        mm                     0             0             0
+PEoffset        mm                     0             0             0
+
+=== Fit B: complex multi-VENC residual ===
+Parameter       Units                 LB       Initial         Final              
+--------------------------------------------------------------------------------
+Vmax            cm/s                   0         8.346         9.462
+R               mm                 1e-06         2.222         2.075
+AR              -                      1             1             1
+alpha           rad               -3.142             0        -3.139
+B               a.u.                   0     1.871e-08     2.235e-07
+C1              a.u.                -Inf             0     -2.96e-08
+C2              a.u.                -Inf             0     6.148e-09

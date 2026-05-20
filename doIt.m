@@ -264,7 +264,7 @@ end
 
 
 
-if 1
+if 0
 saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 5 - radial profiles and fits
@@ -549,7 +549,7 @@ end % section 5
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 4 - phantom and matched simulation summary
@@ -797,7 +797,7 @@ end
 end % section 4
 
 
-return
+% return
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Load in vivo data -- sub-01 and sub-02
@@ -832,7 +832,7 @@ end
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%
 %% 6 - in vivo summary
@@ -957,7 +957,7 @@ end % section 6
 
 
 
-if 1
+if 0
 %%%%%%%%%%%%%%%%%
 %% 7 - conclusion
 %%%%%%%%%%%%%%%%%%
@@ -968,7 +968,7 @@ end
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%
 %% 8 - FVE
@@ -1037,7 +1037,7 @@ end % section 8
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 9 - Phantom details -- all maps and masks with and without flow
@@ -1386,7 +1386,7 @@ end % section 9
 
 
 
-if 1
+if 0
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 10 - in vivo details -- all vessels
@@ -1506,7 +1506,7 @@ end % section 10
 if 1
 saveThis = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 11 - in vivo vessel profile fitting (no-flow-free B)
+%% 11 - in vivo vessel profile fitting — Fit A (joint real residual)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sec11fig = fullfile(info.project.figures, '11-in-vivo-profile-fits');
 if ~exist(sec11fig,'dir'); mkdir(sec11fig); end
@@ -1515,7 +1515,7 @@ if ~exist(sec11fig,'dir'); mkdir(sec11fig); end
 p_iv_defaults   = runSim;
 pMri_iv         = p_iv_defaults.pMri;
 pMri_iv.fieldStrength  = 3;
-pMri_iv.species        = 'blood';
+pMri_iv.species        = 'human';
 pMri_iv.sliceThickness = 4;    % mm, typical brain PC-MRI
 pMri_iv.TR             = 8e-3; % s
 pMri_iv.FA             = 25;   % deg
@@ -1523,34 +1523,31 @@ pMri_iv.TE             = 3e-3; % s
 pMri_iv.venc.method    = 'FVEmono';
 pMri_iv.venc.FVEbw     = 100;  % cm/s, covers all in-vivo vencs
 p_iv_resolved  = runSim(p_iv_defaults.pVessel, p_iv_defaults.pSim, pMri_iv);
-pMri_iv        = p_iv_resolved.pMri;  % resolves relax, E1, Q2, etc.
+pMri_iv        = p_iv_resolved.pMri;
 
-% Physics-based B_init: ratio of Mxy(v=0) to Mxy(v=vBrainRef)
-% vBrainRef set to the median bestVenc across all vessels as a rough typical velocity
-vBrainRef = 10;  % cm/s, rough typical brain artery velocity
+% Physics-based B_init
+vBrainRef = 10;  % cm/s
 Mz_v0     = getMz_ss(pMri_iv, pMri_iv.relax.blood, 0);
 Mxy_v0    = getMxy_ss(Mz_v0,  pMri_iv, pMri_iv.relax.blood);
 Mz_vRef   = getMz_ss(pMri_iv, pMri_iv.relax.blood, vBrainRef);
 Mxy_vRef  = getMxy_ss(Mz_vRef, pMri_iv, pMri_iv.relax.blood);
-B_init_iv = double(Mxy_v0 / Mxy_vRef);  % expected B relative to signal at vBrainRef
+B_init_iv = double(Mxy_v0 / Mxy_vRef);
 
-for s = 1:2
+for s = 1:1
     img      = inVivoSubData{s}.img;
     imgInfo  = inVivoSubData{s}.imgInfo;
-
-    FEspacing_iv = imgInfo.res(1);  % mm per pixel along FE
-    PEspacing_iv = imgInfo.res(2);  % mm per pixel along PE
-
+    FEspacing_iv = imgInfo.res(1);
+    PEspacing_iv = imgInfo.res(2);
     subFigDir = fullfile(sec11fig, inVivoSubNames{s});
     if ~exist(subFigDir,'dir'); mkdir(subFigDir); end
 
-    for roiIdx = 1:length(inVivoSubRoiList{s})
-        roiY       = inVivoSubRoiList{s}(roiIdx).roiY;
-        roiX       = inVivoSubRoiList{s}(roiIdx).roiX;
+    for roiIdx = 1:1
+        roiY        = inVivoSubRoiList{s}(roiIdx).roiY;
+        roiX        = inVivoSubRoiList{s}(roiIdx).roiX;
         bestVenc_iv = inVivoSubRoiList{s}(roiIdx).bestVenc;
         figName_iv  = [inVivoSubNames{s} sprintf('_vessel-%02d', roiIdx)];
 
-        % --- Extract ROI and apply per-run phase referencing ---
+        % Extract ROI and apply per-run phase referencing
         roiImg = img(roiY(1):roiY(2), roiX(1):roiX(2), :,:,:,:,:,:,:,:,:,:,:,:,:,:);
         runIdxList_iv = unique(imgInfo.runIdx);
         for rr = 1:length(runIdxList_iv)
@@ -1561,165 +1558,363 @@ for s = 1:2
                 roiImg(:,:,:,:,:,:,idx_run,:,:,:,:,:,:,:,:,:) ./ exp(1i*refPhase_rr);
         end
 
-        % Per-venc averaged images (phase-referenced)
-        cFlow_iv  = squeeze(mean(roiImg(:,:,:,:,:,:,imgInfo.vencList==inf,      :,:,:,:,:,:,:,:,:),[7 11]));
-        cBest_iv  = squeeze(mean(roiImg(:,:,:,:,:,:,imgInfo.vencList==bestVenc_iv,:,:,:,:,:,:,:,:,:),[7 11]));
-        vFlow_iv  = phase2vel(angle(cBest_iv), vencToM1(bestVenc_iv));
+        % Per-venc averaged images
+        cFlow_iv = squeeze(mean(roiImg(:,:,:,:,:,:,imgInfo.vencList==inf,         :,:,:,:,:,:,:,:,:),[7 11]));
+        cBest_iv = squeeze(mean(roiImg(:,:,:,:,:,:,imgInfo.vencList==bestVenc_iv, :,:,:,:,:,:,:,:,:),[7 11]));
+        vFlow_iv = phase2vel(angle(cBest_iv), vencToM1(bestVenc_iv));
 
-        % --- Spatial coordinates centred at centre of mass ---
+        % Spatial coordinates centred at centre of mass
         nFE_iv = size(cFlow_iv,1);  nPE_iv = size(cFlow_iv,2);
         FEpos_iv = (0:nFE_iv-1) * FEspacing_iv;
         PEpos_iv = (0:nPE_iv-1) * PEspacing_iv;
         [FEgrid_iv, PEgrid_iv] = ndgrid(FEpos_iv, PEpos_iv);
-        M_iv     = abs(cFlow_iv);
-        tot_iv   = sum(M_iv(:));
-        com_iv   = [sum(FEgrid_iv(:).*M_iv(:))/tot_iv, sum(PEgrid_iv(:).*M_iv(:))/tot_iv];
-        FEgrid_iv = FEgrid_iv - com_iv(1);
-        PEgrid_iv = PEgrid_iv - com_iv(2);
-        FEpos_iv  = FEpos_iv  - com_iv(1);
-        PEpos_iv  = PEpos_iv  - com_iv(2);
+        M_iv   = abs(cFlow_iv);
+        tot_iv = sum(M_iv(:));
+        com_iv = [sum(FEgrid_iv(:).*M_iv(:))/tot_iv, sum(PEgrid_iv(:).*M_iv(:))/tot_iv];
+        FEgrid_iv = FEgrid_iv - com_iv(1);  PEgrid_iv = PEgrid_iv - com_iv(2);
+        FEpos_iv  = FEpos_iv  - com_iv(1);  PEpos_iv  = PEpos_iv  - com_iv(2);
         rGrid_iv  = sqrt(FEgrid_iv.^2 + PEgrid_iv.^2);
         pGrid_iv  = -atan2(FEgrid_iv, PEgrid_iv);
-
-        % Blood mask: magnitude above 30% of ROI max (no wall reference available)
         maskBlood_iv = M_iv > 0.30 * max(M_iv(:));
-
-        % Initial radius estimate: half the smaller ROI extent
         R_iv = min(diff(roiY)*FEspacing_iv, diff(roiX)*PEspacing_iv) / 2;
+        rGridOff_iv = rGrid_iv;   % FEoffset = PEoffset = 0
 
-        % --- Vessel profile fit (free B — no no-flow reference) ---
-        [velFit_iv, magFit_iv, velFit1D_iv] = fitMagVelProfile( ...
+        % Extract complex signals for all unique finite VENCs (N_blood × K)
+        finiteVencs_iv = unique(imgInfo.vencList(~isinf(imgInfo.vencList)));
+        K_iv = numel(finiteVencs_iv);
+        cAll_iv = zeros([size(cFlow_iv), K_iv]);
+        for kk = 1:K_iv
+            vv = finiteVencs_iv(kk);
+            cAll_iv(:,:,kk) = squeeze(mean( ...
+                roiImg(:,:,:,:,:,:, imgInfo.vencList==vv, :,:,:,:,:,:,:,:,:), [7 11]));
+        end
+        cAll_2d  = reshape(cAll_iv, [], K_iv);
+        s_all_iv = cAll_2d(maskBlood_iv(:), :);
+
+        % Trajectory data (shared by sections 11 and 12)
+        trjIV_s   = permute(mean(roiImg,[1 2]),[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
+        trjIV_s   = trjIV_s ./ abs(mean(trjIV_s(1:2,:),[1 2]));
+        trjVenc_s = permute(imgInfo.vencList,[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
+
+        % --- Fit A: joint real residual ---
+        [velFit_iv, magFit_iv, velFit1D_iv, fitInfo_iv] = fitMagVelProfile( ...
             rGrid_iv(maskBlood_iv), pGrid_iv(maskBlood_iv), ...
             vFlow_iv(maskBlood_iv), M_iv(maskBlood_iv), ...
-            [], R_iv, 'joint', 2, true, B_init_iv);
+            [], R_iv, 'joint', 2, 'ellipse', B_init_iv);
 
-        rGridOff_iv = sqrt((FEgrid_iv - velFit_iv.FEoffset).^2 + ...
-                           (PEgrid_iv - velFit_iv.PEoffset).^2);
+        % Save Fit A parameters for use by section 12 (e1/e2 = Cartesian ellipse coords)
+        e1_A = (velFit_iv.AR - 1) * cos(2*velFit_iv.alpha);
+        e2_A = (velFit_iv.AR - 1) * sin(2*velFit_iv.alpha);
+        fitA_params = struct('Vmax',velFit_iv.Vmax, 'R',velFit_iv.R, ...
+            'e1',e1_A, 'e2',e2_A, ...
+            'FEoffset',velFit_iv.FEoffset, 'PEoffset',velFit_iv.PEoffset, ...
+            'B',magFit_iv.B, 'C1',magFit_iv.C1, 'C2',magFit_iv.C2);
+        fitA_params_file = fullfile(subFigDir, [figName_iv '_fitA_params.mat']);
+        save(fitA_params_file, 'fitA_params');
 
-        % --- Figure: radial profiles + inflow function m(v) ---
-        f_prof = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 24 16]);
-        tiledlayout(f_prof, 2, 3, 'TileSpacing','compact','Padding','compact');
-        ax_pr = {};
+        % Matched simulation for Fit A
+        pSim_iv = p_iv_defaults.pSim;  pVessel_iv = p_iv_defaults.pVessel;  pMri_iv_s = pMri_iv;
+        pSim_iv.voxGrid.fovFE = nFE_iv*FEspacing_iv;  pSim_iv.voxGrid.fovPE = nPE_iv*PEspacing_iv;
+        pSim_iv.voxGrid.matFE = nFE_iv;  pSim_iv.voxGrid.matPE = nPE_iv;
+        pSim_iv.nSpin = (2^10)^2;  pSim_iv.gridMode = 'pseudoVoxel';
+        pVessel_iv.ID = velFit_iv.R*2;  pVessel_iv.WT = 0;
+        pVessel_iv.vMean = velFit_iv.Vmax/2;  pVessel_iv.posFE = velFit_iv.FEoffset;
+        pVessel_iv.posPE = velFit_iv.PEoffset;  pVessel_iv.profile = 'parabolic1';
+        p_tmp = runSim(pVessel_iv, pSim_iv, pMri_iv_s);
+        pSim_iv = p_tmp.pSim;  pVessel_iv = p_tmp.pVessel;  pMri_iv_s = p_tmp.pMri;
+        [pSim_iv.spinGrid.feGrid, pSim_iv.spinGrid.peGrid] = ...
+            ndgrid(pSim_iv.spinGrid.coorFE, pSim_iv.spinGrid.coorPE);
+        pSim_iv.spinGrid.rGrid = sqrt(pSim_iv.spinGrid.peGrid.^2+pSim_iv.spinGrid.feGrid.^2);
+        pSim_iv.spinGrid.pGrid = -atan2(pSim_iv.spinGrid.feGrid, pSim_iv.spinGrid.peGrid);
+        pVessel_iv.S.lumen = max(0, magFit_iv(velFit_iv( ...
+            pSim_iv.spinGrid.rGrid(pVessel_iv.mask.lumen), ...
+            pSim_iv.spinGrid.pGrid(pVessel_iv.mask.lumen))));
+        pVessel_iv.S.wall = 0;  pVessel_iv.S.surround = mean(M_iv(~maskBlood_iv));
+        resSim_iv = runSim(pVessel_iv, pSim_iv, pMri_iv_s, [], false);
+        I_sim_iv = squeeze(resSim_iv.I);
+        I_sim_norm_iv = I_sim_iv / max(abs(I_sim_iv));
 
-        ax_pr{end+1} = nexttile(1);
-        imagesc(PEpos_iv, FEpos_iv, M_iv); axis image;
-        ax_pr{end}.Colormap = gray; colorbar;
-        title(['mag | venc=\infty | ' inVivoSubNames{s} sprintf(' v%02d',roiIdx)]);
-        set(ax_pr{end},'XTick',[],'YTick',[]);
+        % Simulation markers at measured VENCs and at venc=inf
+        m1_sim_iv = pMri_iv_s.venc.m1List(:,1);
+        m1_meas   = arrayfun(@vencToM1, finiteVencs_iv);
+        [~,idx_iv] = arrayfun(@(m) min(abs(m1_sim_iv-m)), m1_meas, 'UniformOutput',true);
+        s_sim_at_meas_iv = I_sim_norm_iv(idx_iv, 1);
+        s_sim_inf_iv     = I_sim_norm_iv(1, 1);   % m1=0 → venc=inf
 
-        ax_pr{end+1} = nexttile(4);
-        imagesc(PEpos_iv, FEpos_iv, vFlow_iv, [-bestVenc_iv bestVenc_iv]); axis image;
-        ax_pr{end}.Colormap = blueBlackRed; colorbar;
-        title(['vel | venc=' num2str(bestVenc_iv) ' cm/s']);
-        set(ax_pr{end},'XTick',[],'YTick',[]);
-
-        ax_pr{end+1} = nexttile(2);
-        r_plt = linspace(0, velFit_iv.R * 1.1, 120);
-        plot(ax_pr{end}, rGridOff_iv(maskBlood_iv), M_iv(maskBlood_iv), '.', 'Color',[0.6 0.6 0.6]);
-        hold(ax_pr{end},'on');
-        plot(ax_pr{end}, r_plt, magFit_iv(velFit1D_iv(r_plt)), 'g-', 'LineWidth',1.5);
-        xline(ax_pr{end}, velFit_iv.R, 'w--');
-        xlabel('r [mm]'); ylabel('mag [a.u.]');
-        title('mag radial profile + fit');
-        set(ax_pr{end},'Color','k'); grid(ax_pr{end},'on'); axis square;
-
-        ax_pr{end+1} = nexttile(5);
-        plot(ax_pr{end}, rGridOff_iv(maskBlood_iv), vFlow_iv(maskBlood_iv), '.', 'Color',[0.6 0.6 0.6]);
-        hold(ax_pr{end},'on');
-        plot(ax_pr{end}, r_plt, velFit1D_iv(r_plt), 'g-', 'LineWidth',1.5);
-        xline(ax_pr{end}, velFit_iv.R, 'w--');
-        xlabel('r [mm]'); ylabel('v [cm/s]');
-        title('vel radial profile + fit');
-        set(ax_pr{end},'Color','k'); grid(ax_pr{end},'on'); axis square;
-
-        ax_pr{end+1} = nexttile(3);
+        % Figure A
+        t_c   = linspace(0, 2*pi, 300);
+        PE_e  = velFit_iv.R.*cos(t_c);  FE_e = (velFit_iv.R/velFit_iv.AR).*sin(t_c);
+        cx_iv = PE_e.*cos(velFit_iv.alpha)-FE_e.*sin(velFit_iv.alpha)+velFit_iv.PEoffset;
+        cy_iv = PE_e.*sin(velFit_iv.alpha)+FE_e.*cos(velFit_iv.alpha)+velFit_iv.FEoffset;
+        r_plt = linspace(0, velFit_iv.R*1.1, 120);
         v_plt = linspace(0, max(abs(vFlow_iv(maskBlood_iv))), 120);
-        plot(ax_pr{end}, vFlow_iv(maskBlood_iv), M_iv(maskBlood_iv), '.', 'Color',[0.6 0.6 0.6]);
-        hold(ax_pr{end},'on');
-        plot(ax_pr{end}, v_plt, magFit_iv(v_plt), 'g-', 'LineWidth',1.5);
-        xline(ax_pr{end}, 0, 'w:');
-        xlabel('v [cm/s]'); ylabel('mag [a.u.]');
-        title('inflow function m(v)');
-        set(ax_pr{end},'Color','k'); grid(ax_pr{end},'on'); axis square;
+
+        f_prof = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 30 16]);
+        tiledlayout(f_prof, 2, 3, 'TileSpacing','compact','Padding','compact');
+
+        nexttile(1); imagesc(PEpos_iv, FEpos_iv, M_iv); axis image;
+        colormap(gca,gray); colorbar; hold on;
+        plot(cx_iv,cy_iv,'r-','LineWidth',1.5);
+        plot(velFit_iv.PEoffset,velFit_iv.FEoffset,'r+','MarkerSize',10,'LineWidth',1.5);
+        title(['mag | venc=\infty | ' inVivoSubNames{s} sprintf(' v%02d — Fit A',roiIdx)]);
+        set(gca,'XTick',[],'YTick',[]);
+
+        nexttile(4); imagesc(PEpos_iv, FEpos_iv, vFlow_iv, [-bestVenc_iv bestVenc_iv]); axis image;
+        colormap(gca,blueBlackRed); colorbar; hold on;
+        plot(cx_iv,cy_iv,'r-','LineWidth',1.5);
+        plot(velFit_iv.PEoffset,velFit_iv.FEoffset,'r+','MarkerSize',10,'LineWidth',1.5);
+        title(['vel | venc=' num2str(bestVenc_iv) ' cm/s']); set(gca,'XTick',[],'YTick',[]);
+
+        nexttile(2);
+        plot(rGridOff_iv(maskBlood_iv), M_iv(maskBlood_iv), '.','Color',[.6 .6 .6]); hold on;
+        plot(r_plt, magFit_iv(velFit1D_iv(r_plt)), 'g-','LineWidth',1.5);
+        xline(velFit_iv.R,'w--'); xlabel('r [mm]'); ylabel('mag [a.u.]');
+        title('mag radial profile + fit'); set(gca,'Color','k'); grid on; axis square;
+
+        nexttile(5);
+        plot(rGridOff_iv(maskBlood_iv), vFlow_iv(maskBlood_iv), '.','Color',[.6 .6 .6]); hold on;
+        plot(r_plt, velFit1D_iv(r_plt), 'g-','LineWidth',1.5);
+        xline(velFit_iv.R,'w--'); xlabel('r [mm]'); ylabel('v [cm/s]');
+        title('vel radial profile + fit'); set(gca,'Color','k'); grid on; axis square;
+
+        nexttile(3);
+        plot(vFlow_iv(maskBlood_iv), M_iv(maskBlood_iv), '.','Color',[.6 .6 .6]); hold on;
+        plot(v_plt, magFit_iv(v_plt), 'g-','LineWidth',1.5);
+        xline(0,'w:'); xlabel('v [cm/s]'); ylabel('mag [a.u.]');
+        title('inflow function m(v)'); set(gca,'Color','k'); grid on; axis square;
+
+        ax_cd = nexttile(6);
+        plotComplexDomain(ax_cd, trjIV_s(:), trjVenc_s(:), 'full', 'markers');
+        set(findobj(ax_cd,'Type','line','Marker','o'),'MarkerFaceColor','g','MarkerEdgeColor','k');
+        hold on;
+        plot(ax_cd, real(I_sim_norm_iv), imag(I_sim_norm_iv), 'm-','LineWidth',1.5);
+        plot(ax_cd, real(s_sim_at_meas_iv), imag(s_sim_at_meas_iv), ...
+            'ms','MarkerSize',7,'MarkerFaceColor','m','LineWidth',0.5);
+        plot(ax_cd, real(s_sim_inf_iv), imag(s_sim_inf_iv), ...
+            'ms','MarkerSize',7,'MarkerFaceColor','m','LineWidth',0.5);
+        legend(ax_cd, {'in vivo','simulation','sim @ meas. VENC','sim @ venc=\infty'}, ...
+            'Location','best','TextColor','w','Color','k');
+        title(ax_cd, 'complex domain');
 
         set(findall(f_prof,'Type','axes'),'FontSize',12);
         set(findall(f_prof,'Type','text'),'FontSize',8);
         if saveThis
-            exportgraphics(f_prof, fullfile(subFigDir, [figName_iv '_profiles.png']));
-            hMkr_=findobj(f_prof,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
-            exportgraphics(f_prof, fullfile(subFigDir, [figName_iv '_profiles.svg']));
+            exportgraphics(f_prof, fullfile(subFigDir,[figName_iv '_profiles_A.png']));
+            hMkr_=findobj(f_prof,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor),hMkr_); set(hMkr_,'Marker','.');
+            exportgraphics(f_prof, fullfile(subFigDir,[figName_iv '_profiles_A.svg']));
             set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
         end
         close(f_prof);
 
-        % --- Matched simulation ---
-        pSim_iv    = p_iv_defaults.pSim;
-        pVessel_iv = p_iv_defaults.pVessel;
-        pMri_iv_s  = pMri_iv;  % already resolved
+        % Annotate initial value sources for Fit A
+        fitInfo_iv.init_notes = { ...
+            'fitVelProfile: 1D parabolic fit to velocity map at best VENC', ...
+            'fitVelProfile: same 1D fit', ...
+            '0 (circular: AR=1 → e1=e2=0)', ...
+            '0 (circular: AR=1 → e1=e2=0)', ...
+            sprintf('Physics: Mxy(0)/Mxy(%g cm/s), human blood T1=1.66s, TR=8ms, FA=25deg', vBrainRef), ...
+            '0 (flat inflow curve)', ...
+            '0 (flat inflow curve)', ...
+            'Fixed at 0', ...
+            'Fixed at 0'};
 
-        pSim_iv.voxGrid.fovFE = nFE_iv * FEspacing_iv;
-        pSim_iv.voxGrid.fovPE = nPE_iv * PEspacing_iv;
-        pSim_iv.voxGrid.matFE = nFE_iv;
-        pSim_iv.voxGrid.matPE = nPE_iv;
-        pSim_iv.nSpin         = (2^10)^2;
-        pSim_iv.gridMode      = 'pseudoVoxel';
-
-        pVessel_iv.ID      = velFit_iv.R * 2;
-        pVessel_iv.WT      = FEspacing_iv;  % one voxel wall — no wall reference
-        pVessel_iv.vMean   = velFit_iv.Vmax / 2;
-        pVessel_iv.posFE   = velFit_iv.FEoffset;
-        pVessel_iv.posPE   = velFit_iv.PEoffset;
-        pVessel_iv.profile = 'parabolic1';
-
-        p_tmp       = runSim(pVessel_iv, pSim_iv, pMri_iv_s);
-        pSim_iv     = p_tmp.pSim;
-        pVessel_iv  = p_tmp.pVessel;
-        pMri_iv_s   = p_tmp.pMri;
-
-        [pSim_iv.spinGrid.feGrid, pSim_iv.spinGrid.peGrid] = ...
-            ndgrid(pSim_iv.spinGrid.coorFE, pSim_iv.spinGrid.coorPE);
-        pSim_iv.spinGrid.rGrid = sqrt(pSim_iv.spinGrid.peGrid.^2 + pSim_iv.spinGrid.feGrid.^2);
-        pSim_iv.spinGrid.pGrid = -atan2(pSim_iv.spinGrid.feGrid, pSim_iv.spinGrid.peGrid);
-
-        % Per-spin signal from fitted m(v(r,p))
-        pVessel_iv.S.lumen = max(0, magFit_iv(velFit_iv( ...
-            pSim_iv.spinGrid.rGrid(pVessel_iv.mask.lumen), ...
-            pSim_iv.spinGrid.pGrid(pVessel_iv.mask.lumen))));
-        pVessel_iv.S.wall     = 0;
-        pVessel_iv.S.surround = 0;
-
-        resSim_iv = runSim(pVessel_iv, pSim_iv, pMri_iv_s, [], false);
-
-        % --- Figure: complex domain overlay (in vivo + matched simulation) ---
-        % In-vivo: ROI-spatial-mean, phase-referenced, normalised to venc=inf
-        trjIV_s   = permute(mean(roiImg,[1 2]),[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
-        trjIV_s   = trjIV_s ./ abs(mean(trjIV_s(1:2,:),[1 2]));  % rows 1-2 = venc=inf (sorted descending)
-        trjVenc_s = permute(imgInfo.vencList,[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
-
-        % Simulation: normalise to max |I| (≈ venc=inf)
-        I_sim = squeeze(resSim_iv.I);
-        I_sim_norm = I_sim / max(abs(I_sim));
-
-        f_cd = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 16 16]);
-        ax_cd = axes(f_cd);
-        plotComplexDomain(ax_cd, trjIV_s(:), trjVenc_s(:), 'full', 'markers');
-        set(findobj(ax_cd,'Type','line','Marker','o'),'MarkerFaceColor','g','MarkerEdgeColor','k');
-        hold(ax_cd,'on');
-        plot(ax_cd, real(I_sim_norm), imag(I_sim_norm), 'm-', 'LineWidth',1.5);
-        legend(ax_cd, {'in vivo','simulation'}, 'Location','best','TextColor','w','Color','k');
-        title(ax_cd, [inVivoSubNames{s} sprintf(' vessel-%02d — complex domain', roiIdx)]);
-        set(findall(f_cd,'Type','axes'),'FontSize',12);
-        set(findall(f_cd,'Type','text'),'FontSize',8);
-        if saveThis
-            exportgraphics(f_cd, fullfile(subFigDir, [figName_iv '_complexDomain.png']));
-            hMkr_=findobj(f_cd,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor), hMkr_); set(hMkr_,'Marker','.');
-            exportgraphics(f_cd, fullfile(subFigDir, [figName_iv '_complexDomain.svg']));
-            set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
-        end
-        close(f_cd);
+        % Write fitParams_A.md
+        costA.equation  = '\mathbf{r} = \begin{bmatrix}(v_i^{\mathrm{meas}} - v_i^{\mathrm{pred}})/\sigma_v \\ (m_i^{\mathrm{meas}} - m(v_i^{\mathrm{pred}}))/\sigma_m\end{bmatrix}';
+        costA.predicted = '';
+        costA.normDesc  = ['$\sigma_v = \mathrm{std}(v^{\mathrm{meas}})$, ' ...
+            '$\sigma_m = \mathrm{std}(m^{\mathrm{meas}})$. ' ...
+            'Only blood-masked pixels enter the cost (same single-spin-per-pixel approximation as Fit B).'];
+        N_blood = sum(maskBlood_iv(:));
+        dataSummaryA = sprintf('%d blood pixels (M > 0.3·max), 1 VENC (venc = %g cm/s). Total residual elements: %d.', ...
+            N_blood, bestVenc_iv, 2*N_blood);
+        writeFitParamsMd(fullfile(subFigDir,[figName_iv '_fitParams_A.md']), ...
+            'A — Joint real residual (single-VENC)', fitInfo_iv, costA, dataSummaryA);
 
     end % roiIdx
 end % subject
 
 %% %%%%%%%%%%%%%%%%%%%
 end % section 11
+
+
+
+
+if 1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% 12 - in vivo vessel profile fitting — Fit B (complex multi-VENC)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Requires section 11 to have run first (workspace vars + saved .mat file).
+
+for s = 1:1
+    for roiIdx = 1:1
+        % Load Fit A parameters — error explicitly if missing
+        fitA_params_file = fullfile(subFigDir, [figName_iv '_fitA_params.mat']);
+        if ~exist(fitA_params_file, 'file')
+            error(['Section 12: Fit A parameter file not found:\n  %s\n' ...
+                   'Run section 11 first to generate it.'], fitA_params_file);
+        end
+        load(fitA_params_file, 'fitA_params');
+
+        % Set up runSim params for Fit B (allVoxels mode, small nSpin for speed)
+        nSpinsSim_B = 4 * nFE_iv * nPE_iv;   % ~4 spins per voxel (2×2 sub-grid)
+        pSim_B = p_iv_defaults.pSim;
+        pSim_B.voxGrid.fovFE = nFE_iv * FEspacing_iv;
+        pSim_B.voxGrid.fovPE = nPE_iv * PEspacing_iv;
+        pSim_B.voxGrid.matFE = nFE_iv;
+        pSim_B.voxGrid.matPE = nPE_iv;
+
+        % theta0 for Fit B: e1/e2 from Fit A; A_n initialised inside fitComplexSim
+        theta0_simB = [fitA_params.Vmax, fitA_params.R, fitA_params.e1, fitA_params.e2, []];
+
+        % s_meas for Fit B: (nFE × nPE × K) complex, ALL ROI pixels
+        s_meas_B = reshape(cAll_2d, [nFE_iv, nPE_iv, K_iv]);
+
+        % --- Fit B: runSim-based forward model, all voxels ---
+        [fitResult_cx, fitInfo_cx] = fitComplexSim( ...
+            s_meas_B, finiteVencs_iv(:)', ...
+            p_iv_defaults.pVessel, pSim_B, pMri_iv, ...
+            theta0_simB, nSpinsSim_B);
+
+        % Build sfit/cfit objects for figure plotting (reuse fittypes from Fit A)
+        velFit_cx   = sfit(fittype(velFit_iv), fitResult_cx.Vmax, fitResult_cx.R, ...
+                           fitResult_cx.AR, fitResult_cx.alpha, 0, 0);
+        velFit1D_cx = cfit(fittype(velFit1D_iv), fitResult_cx.Vmax, fitResult_cx.R);
+
+        % magFit_cx: physics-based m(v) curve scaled by A (for profile plot overlay)
+        A_phys = fitResult_cx.A;  % in scanner units
+        v_grid_cx = linspace(0, fitResult_cx.Vmax * 1.1, 80)';
+        Mxy_grid_cx = double(arrayfun(@(vv) getMxy_ss( ...
+            getMz_ss(pMri_iv, pMri_iv.relax.blood, vv), pMri_iv, pMri_iv.relax.blood), v_grid_cx));
+        m_grid_cx = A_phys .* Mxy_grid_cx;
+        ft_mag_cx = fittype(@(B, C1, C2, v) B + C1.*v + C2.*v.^2, ...
+            'independent','v','coefficients',{'B','C1','C2'});
+        magFit_cx = fit(v_grid_cx, m_grid_cx, ft_mag_cx, 'StartPoint', [m_grid_cx(1), 0, 0]);
+
+        % Matched simulation for Fit B
+        pSim_cx = p_iv_defaults.pSim;  pVessel_cx = p_iv_defaults.pVessel;  pMri_cx_s = pMri_iv;
+        pSim_cx.voxGrid.fovFE = nFE_iv*FEspacing_iv;  pSim_cx.voxGrid.fovPE = nPE_iv*PEspacing_iv;
+        pSim_cx.voxGrid.matFE = nFE_iv;  pSim_cx.voxGrid.matPE = nPE_iv;
+        pSim_cx.nSpin = (2^10)^2;  pSim_cx.gridMode = 'pseudoVoxel';
+        pVessel_cx.ID = velFit_cx.R*2;  pVessel_cx.WT = 0;
+        pVessel_cx.vMean = velFit_cx.Vmax/2;  pVessel_cx.posFE = velFit_cx.FEoffset;
+        pVessel_cx.posPE = velFit_cx.PEoffset;  pVessel_cx.profile = 'parabolic1';
+        p_tmp = runSim(pVessel_cx, pSim_cx, pMri_cx_s);
+        pSim_cx = p_tmp.pSim;  pVessel_cx = p_tmp.pVessel;  pMri_cx_s = p_tmp.pMri;
+        [pSim_cx.spinGrid.feGrid, pSim_cx.spinGrid.peGrid] = ...
+            ndgrid(pSim_cx.spinGrid.coorFE, pSim_cx.spinGrid.coorPE);
+        pSim_cx.spinGrid.rGrid = sqrt(pSim_cx.spinGrid.peGrid.^2+pSim_cx.spinGrid.feGrid.^2);
+        pSim_cx.spinGrid.pGrid = -atan2(pSim_cx.spinGrid.feGrid, pSim_cx.spinGrid.peGrid);
+        pVessel_cx.S.lumen = max(0, magFit_cx(velFit_cx( ...
+            pSim_cx.spinGrid.rGrid(pVessel_cx.mask.lumen), ...
+            pSim_cx.spinGrid.pGrid(pVessel_cx.mask.lumen))));
+        pVessel_cx.S.wall = 0;  pVessel_cx.S.surround = mean(M_iv(~maskBlood_iv));
+        resSim_cx = runSim(pVessel_cx, pSim_cx, pMri_cx_s, [], false);
+        I_sim_cx = squeeze(resSim_cx.I);
+        I_sim_norm_cx = I_sim_cx / max(abs(I_sim_cx));
+
+        % Simulation markers at measured VENCs and venc=inf
+        m1_sim_cx = pMri_cx_s.venc.m1List(:,1);
+        m1_meas   = arrayfun(@vencToM1, finiteVencs_iv);
+        [~,idx_cx] = arrayfun(@(m) min(abs(m1_sim_cx-m)), m1_meas, 'UniformOutput',true);
+        s_sim_at_meas_cx = I_sim_norm_cx(idx_cx, 1);
+        s_sim_inf_cx     = I_sim_norm_cx(1, 1);
+
+        % Figure B
+        t_c    = linspace(0, 2*pi, 300);
+        PE_e   = velFit_cx.R.*cos(t_c);  FE_e = (velFit_cx.R/velFit_cx.AR).*sin(t_c);
+        cx_cx  = PE_e.*cos(velFit_cx.alpha)-FE_e.*sin(velFit_cx.alpha)+velFit_cx.PEoffset;
+        cy_cx  = PE_e.*sin(velFit_cx.alpha)+FE_e.*cos(velFit_cx.alpha)+velFit_cx.FEoffset;
+        r_plt_cx = linspace(0, velFit_cx.R*1.1, 120);
+        v_plt    = linspace(0, max(abs(vFlow_iv(maskBlood_iv))), 120);
+
+        f_cx = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position',[0 0 30 16]);
+        tiledlayout(f_cx, 2, 3, 'TileSpacing','compact','Padding','compact');
+
+        nexttile(1); imagesc(PEpos_iv, FEpos_iv, M_iv); axis image;
+        colormap(gca,gray); colorbar; hold on;
+        plot(cx_cx,cy_cx,'r-','LineWidth',1.5);
+        plot(velFit_cx.PEoffset,velFit_cx.FEoffset,'r+','MarkerSize',10,'LineWidth',1.5);
+        title(['mag | venc=\infty | ' inVivoSubNames{s} sprintf(' v%02d — Fit B',roiIdx)]);
+        set(gca,'XTick',[],'YTick',[]);
+
+        nexttile(4); imagesc(PEpos_iv, FEpos_iv, vFlow_iv, [-bestVenc_iv bestVenc_iv]); axis image;
+        colormap(gca,blueBlackRed); colorbar; hold on;
+        plot(cx_cx,cy_cx,'r-','LineWidth',1.5);
+        plot(velFit_cx.PEoffset,velFit_cx.FEoffset,'r+','MarkerSize',10,'LineWidth',1.5);
+        title(['vel | venc=' num2str(bestVenc_iv) ' cm/s']); set(gca,'XTick',[],'YTick',[]);
+
+        nexttile(2);
+        plot(rGridOff_iv(maskBlood_iv), M_iv(maskBlood_iv), '.','Color',[.6 .6 .6]); hold on;
+        plot(r_plt_cx, magFit_cx(velFit1D_cx(r_plt_cx)), 'g-','LineWidth',1.5);
+        xline(velFit_cx.R,'w--'); xlabel('r [mm]'); ylabel('mag [a.u.]');
+        title('mag radial profile + fit'); set(gca,'Color','k'); grid on; axis square;
+
+        nexttile(5);
+        plot(rGridOff_iv(maskBlood_iv), vFlow_iv(maskBlood_iv), '.','Color',[.6 .6 .6]); hold on;
+        plot(r_plt_cx, velFit1D_cx(r_plt_cx), 'g-','LineWidth',1.5);
+        xline(velFit_cx.R,'w--'); xlabel('r [mm]'); ylabel('v [cm/s]');
+        title('vel radial profile + fit'); set(gca,'Color','k'); grid on; axis square;
+
+        nexttile(3);
+        plot(vFlow_iv(maskBlood_iv), M_iv(maskBlood_iv), '.','Color',[.6 .6 .6]); hold on;
+        plot(v_plt, magFit_cx(v_plt), 'g-','LineWidth',1.5);
+        xline(0,'w:'); xlabel('v [cm/s]'); ylabel('mag [a.u.]');
+        title('inflow function m(v)'); set(gca,'Color','k'); grid on; axis square;
+
+        ax_cd = nexttile(6);
+        plotComplexDomain(ax_cd, trjIV_s(:), trjVenc_s(:), 'full', 'markers');
+        set(findobj(ax_cd,'Type','line','Marker','o'),'MarkerFaceColor','g','MarkerEdgeColor','k');
+        hold on;
+        plot(ax_cd, real(I_sim_norm_cx), imag(I_sim_norm_cx), 'm-','LineWidth',1.5);
+        plot(ax_cd, real(s_sim_at_meas_cx), imag(s_sim_at_meas_cx), ...
+            'ms','MarkerSize',7,'MarkerFaceColor','m','LineWidth',0.5);
+        plot(ax_cd, real(s_sim_inf_cx), imag(s_sim_inf_cx), ...
+            'ms','MarkerSize',7,'MarkerFaceColor','m','LineWidth',0.5);
+        legend(ax_cd, {'in vivo','simulation','sim @ meas. VENC','sim @ venc=\infty'}, ...
+            'Location','best','TextColor','w','Color','k');
+        title(ax_cd, 'complex domain');
+
+        set(findall(f_cx,'Type','axes'),'FontSize',12);
+        set(findall(f_cx,'Type','text'),'FontSize',8);
+        if saveThis
+            exportgraphics(f_cx, fullfile(subFigDir,[figName_iv '_profiles_B.png']));
+            hMkr_=findobj(f_cx,'Marker','o'); origMEC_=get(hMkr_,{'MarkerEdgeColor'}); arrayfun(@(h) set(h,'MarkerEdgeColor',h.MarkerFaceColor),hMkr_); set(hMkr_,'Marker','.');
+            exportgraphics(f_cx, fullfile(subFigDir,[figName_iv '_profiles_B.svg']));
+            set(hMkr_,'Marker','o'); set(hMkr_,{'MarkerEdgeColor'},origMEC_);
+        end
+        close(f_cx);
+
+        % Annotate initial value sources for Fit B
+        fitInfo_cx.init_notes = { ...
+            'Fit A final value', ...
+            'Fit A final value', ...
+            'Fit A final e1', ...
+            'Fit A final e2', ...
+            sprintf('1/Mxy_blood(Vmax/2) ≈ %.3f (so A_n*Mxy ≈ 1 at init)', 1/max(double(getMxy_ss(getMz_ss(pMri_iv,pMri_iv.relax.blood,fitA_params.Vmax/2),pMri_iv,pMri_iv.relax.blood)),eps)), ...
+            'Fixed at 0', ...
+            'Fixed at 0'};
+
+        % Write fitParams_B.md
+        N_total = nFE_iv * nPE_iv;
+        costB.equation  = ['\mathbf{r} = \frac{1}{\sigma_s}\begin{bmatrix}' ...
+            '\operatorname{Re}(s_{ik}^{\mathrm{meas}} - \hat{s}_{ik}) \\' ...
+            '\operatorname{Im}(s_{ik}^{\mathrm{meas}} - \hat{s}_{ik})\end{bmatrix}'];
+        costB.predicted = ['\hat{s}_{ik}(\mathrm{voxel}\,i, \mathrm{VENC}\,k) = ' ...
+            'A_n \sum_{j \in \mathrm{voxel}\,i} M_{xy}(v_j) \cdot e^{\,i\pi v_j/\mathrm{venc}_k}'];
+        costB.normDesc  = ['$M_{xy}(v)$ from blood T1 physics (`getMxy\_ss`). ' ...
+            'Partial volume and within-voxel phase dispersion are handled by ' ...
+            'the spin summation in `runSim` (`allVoxels` gridMode). ' ...
+            'All $' num2str(N_total) '$ ROI voxels enter the cost — no masking. ' ...
+            '$\sigma_s = \mathrm{std}(|s^{\mathrm{meas}}|)$ over all voxels and VENCs. ' ...
+            sprintf('Spins used: %d (≈ %.1f per voxel).', nSpinsSim_B, nSpinsSim_B/N_total)];
+        venc_str = num2str(finiteVencs_iv(:)', '%g ');
+        dataSummaryB = sprintf('%d ROI voxels (all), K = %d finite VENCs (%s cm/s), %d spins. Total residual elements: %d.', ...
+            N_total, K_iv, strtrim(venc_str), nSpinsSim_B, 2*N_total*K_iv);
+        writeFitParamsMd(fullfile(subFigDir,[figName_iv '_fitParams_B.md']), ...
+            'B — runSim forward model (all voxels)', fitInfo_cx, costB, dataSummaryB);
+
+    end % roiIdx
+end % subject
+
+%% %%%%%%%%%%%%%%%%%%%
+end % section 12
