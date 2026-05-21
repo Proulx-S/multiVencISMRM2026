@@ -59,6 +59,8 @@ tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool
 gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
 tool = 'multiVencSim'; repoURL = 'https://github.com/Proulx-S/multiVencSim.git'; subTool = ''; branch = 'dev-postISMRM';
 gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+% pcMRAsim must be re-added last: multiVencSim carries its own old runSim.m which shadows pcMRAsim's
+addpath(genpath(fullfile(toolDir, 'pcMRAsim')));
 %% %%%%%%%%%%%%%%%%%%
 disp(projectCode)
 disp(projectStorage)
@@ -1579,7 +1581,7 @@ for s = 1:1
         pGrid_iv  = -atan2(FEgrid_iv, PEgrid_iv);
         maskBlood_iv = M_iv > 0.30 * max(M_iv(:));
         R_iv = min(diff(roiY)*FEspacing_iv, diff(roiX)*PEspacing_iv) / 2;
-        rGridOff_iv = rGrid_iv;   % FEoffset = PEoffset = 0
+        % rGridOff updated after Fit A (offsets fixed at 0 by the ellipse fit)
 
         % Extract complex signals for all unique finite VENCs (N_blood × K)
         finiteVencs_iv = unique(imgInfo.vencList(~isinf(imgInfo.vencList)));
@@ -1591,7 +1593,6 @@ for s = 1:1
                 roiImg(:,:,:,:,:,:, imgInfo.vencList==vv, :,:,:,:,:,:,:,:,:), [7 11]));
         end
         cAll_2d  = reshape(cAll_iv, [], K_iv);
-        s_all_iv = cAll_2d(maskBlood_iv(:), :);
 
         % Trajectory data (shared by sections 11 and 12)
         trjIV_s   = permute(mean(roiImg,[1 2]),[7 11 1 2 3 4 5 6 8 9 10 12 13 14 15 16]);
@@ -1603,6 +1604,10 @@ for s = 1:1
             rGrid_iv(maskBlood_iv), pGrid_iv(maskBlood_iv), ...
             vFlow_iv(maskBlood_iv), M_iv(maskBlood_iv), ...
             [], R_iv, 'joint', 2, 'ellipse', B_init_iv);
+
+        % Offset-corrected radial grid (offsets fixed at 0 by the ellipse fit)
+        rGridOff_iv = sqrt((FEgrid_iv - velFit_iv.FEoffset).^2 + ...
+                           (PEgrid_iv - velFit_iv.PEoffset).^2);
 
         % Save Fit A parameters for use by section 12 (e1/e2 = Cartesian ellipse coords)
         e1_A = (velFit_iv.AR - 1) * cos(2*velFit_iv.alpha);
@@ -1725,7 +1730,8 @@ for s = 1:1
         costA.predicted = '';
         costA.normDesc  = ['$\sigma_v = \mathrm{std}(v^{\mathrm{meas}})$, ' ...
             '$\sigma_m = \mathrm{std}(m^{\mathrm{meas}})$. ' ...
-            'Only blood-masked pixels enter the cost (same single-spin-per-pixel approximation as Fit B).'];
+            'Only blood-masked pixels enter the cost. ' ...
+            'Each pixel is treated as a single isochromat at its centre (no partial-volume model).'];
         N_blood = sum(maskBlood_iv(:));
         dataSummaryA = sprintf('%d blood pixels (M > 0.3·max), 1 VENC (venc = %g cm/s). Total residual elements: %d.', ...
             N_blood, bestVenc_iv, 2*N_blood);

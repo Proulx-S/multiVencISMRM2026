@@ -7,11 +7,11 @@
 ```
 Parameter         Units       Fixed?             LB            UB       Initial         Final
 ---------------------------------------------------------------------------------------------
-Vmax              cm/s        no                  0           Inf         9.049         7.248
-R                 mm          no              1e-06         2.667         2.325         2.646
-e1                -           no                 -1             1       -0.2693       -0.5732
-e2                -           no                 -1             1       -0.0311      0.003403
-A_n               -           no                  0           Inf         4.033         5.712
+Vmax              cm/s        no                  0           Inf         9.049         7.581
+R                 mm          no              1e-06         2.667         2.325         2.664
+e1                -           no                 -1             1       -0.2693       -0.6854
+e2                -           no                 -1             1       -0.0311      -0.01207
+A_n               -           no                  0           Inf         4.033         6.265
 FEoffset *        mm          yes                 0             0             0             0
 PEoffset *        mm          yes                 0             0             0             0
 ```
@@ -21,8 +21,8 @@ Derived:
 ```
 Parameter         Units            Initial         Final
 --------------------------------------------------------
-AR                -                  1.271         1.573
-alpha             rad               -1.513         1.568
+AR                -                  1.271         1.685
+alpha             rad               -1.513        -1.562
 ```
 
 ### Initial value sources

@@ -91,7 +91,11 @@ fprintf(fid, '$$R_{\\text{eff},i} = \\frac{R}{\\sqrt{A_i^2 + AR^2\\, B_i^2}}$$\n
 fprintf(fid, 'with $(A_i, B_i)$ the unit direction projected onto the ellipse axes ');
 fprintf(fid, '(semi-major $R$ at angle $\\alpha$ from PE axis, semi-minor $R/AR$, $AR \\ge 1$).\n\n');
 fprintf(fid, '### Magnitude–velocity relationship\n\n');
-fprintf(fid, '$$m(v) = B + C_1 v + C_2 v^2$$\n\n');
+if isfield(costDesc, 'magModel') && ~isempty(costDesc.magModel)
+    fprintf(fid, '%s\n\n', costDesc.magModel);
+else
+    fprintf(fid, '$$m(v) = B + C_1 v + C_2 v^2$$\n\n');
+end
 fprintf(fid, '---\n\n');
 
 % -------------------------------------------------------------------------

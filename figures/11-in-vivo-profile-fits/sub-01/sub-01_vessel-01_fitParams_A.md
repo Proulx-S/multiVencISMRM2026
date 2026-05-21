@@ -69,7 +69,7 @@ Minimised by `lsqnonlin` (trust-region reflective).
 
 $$\mathbf{r} = \begin{bmatrix}(v_i^{\mathrm{meas}} - v_i^{\mathrm{pred}})/\sigma_v \\ (m_i^{\mathrm{meas}} - m(v_i^{\mathrm{pred}}))/\sigma_m\end{bmatrix}$$
 
-$\sigma_v = \mathrm{std}(v^{\mathrm{meas}})$, $\sigma_m = \mathrm{std}(m^{\mathrm{meas}})$. Only blood-masked pixels enter the cost (same single-spin-per-pixel approximation as Fit B).
+$\sigma_v = \mathrm{std}(v^{\mathrm{meas}})$, $\sigma_m = \mathrm{std}(m^{\mathrm{meas}})$. Only blood-masked pixels enter the cost. Each pixel is treated as a single isochromat at its centre (no partial-volume model).
 
 **Data**: 20 blood pixels (M > 0.3·max), 1 VENC (venc = 10 cm/s). Total residual elements: 40.
 
