@@ -229,34 +229,63 @@ if isnan(S_tissue_init) || isempty(S_tissue_init)
 end
 
 % --- Fit bounds and initial values ---
-% theta = [Vmax, R, tx, ty, A, FEoffset, PEoffset, WT, S_tissue, sigma_n]
+% theta = [Vmax, R, nx, ny, cx_FE, cx_PE, cx_SLC, A, WT, S_tissue, sigma_n]
 sv        = std(v_blood);
-sm        = double(std(M_ph(:)));   % all pixels for three-compartment fit
+sm        = double(std(M_ph(:)));
 Vmax_init = max(abs(v_blood));
-lb_13 = double([0,    1e-6, -0.7, -0.7, 0,    -PEspacing,  -FEspacing,  0,      0,              0  ]);
-ub_13 = double([inf,  ID,    0.7,  0.7, inf,   PEspacing,   FEspacing,   OD,    inf,             inf]);
-theta0_13 = double([Vmax_init, R_ph, 0, 0, A_init, 0, 0, WT_init, S_tissue_init, sigma_n_init]);
+nx_lim    = 0.1;   % ±0.1 tilt → combined ≤ ~8° for phantom
+lb_13 = double([0,    1e-6, -nx_lim,-nx_lim, -FEspacing,-PEspacing, 0, 0, 0,  0,  0  ]);
+ub_13 = double([inf,  ID,    nx_lim, nx_lim,  FEspacing, PEspacing,  0, inf,OD, inf, inf]);
+theta0_13 = double([Vmax_init, R_ph, 0, 0, 0, 0, 0, A_init, WT_init, S_tissue_init, sigma_n_init]);
 theta0_13 = min(max(theta0_13, lb_13), ub_13);
 opts13 = optimoptions('lsqnonlin','Display','iter','MaxFunctionEvaluations',3e4,'FunctionTolerance',1e-9);
 
-% --- Fit 13a: three-compartment + noise, with noFlow ---
-f_res_a = @(th) residuals_inflow13_full(th, FEgrid, PEgrid, FEspacing, PEspacing, ...
-    double(M_ph), double(vFlow_ph), maskBlood_ph, double(abs(cNoFlow_ph)), ...
-    noise_grid, noise_noflow, pMri_ph, pRelax_ph, sv, sm);
-theta_13a = lsqnonlin(f_res_a, theta0_13, lb_13, ub_13, opts13);
+% --- Set up pSim_base for costFun_inflow ---
+pSim_base = p_ph_def.pSim;
+pSim_base.voxGrid.fovFE  = numel(FEpos) * FEspacing;
+pSim_base.voxGrid.fovPE  = numel(PEpos) * PEspacing;
+pSim_base.voxGrid.matFE  = numel(FEpos);
+pSim_base.voxGrid.matPE  = numel(PEpos);
+pSim_base.nSpin          = 49;   % 7×7 sub-voxel grid (matches original n_sub=7)
+pSim_base.monteCarloN    = 0;
 
-% --- Fit 13b: three-compartment + noise, without noFlow ---
-f_res_b = @(th) residuals_inflow13_full(th, FEgrid, PEgrid, FEspacing, PEspacing, ...
-    double(M_ph), double(vFlow_ph), maskBlood_ph, [], ...
-    noise_grid, noise_noflow, pMri_ph, pRelax_ph, sv, sm);
-theta_13b = lsqnonlin(f_res_b, theta_13a, lb_13, ub_13, opts13);
+% --- Build data struct ---
+data_13.pSim_base    = pSim_base;
+data_13.pMri_base    = pMri_ph;
+data_13.m_meas       = double(M_ph);
+data_13.v_meas       = double(vFlow_ph);
+data_13.mask_vel     = maskBlood_ph;
+data_13.m_noflow     = double(abs(cNoFlow_ph));
+data_13.noise_grid   = noise_grid;
+data_13.noise_noflow = noise_noflow;
+data_13.FEgrid       = FEgrid;
+data_13.PEgrid       = PEgrid;
+data_13.sv           = sv;
+data_13.sm           = sm;
+
+% --- Fit 13a: cylinder3D + noise, with noFlow ---
+problem_13a.objective = @(th) costFun_inflow(th, data_13);
+problem_13a.x0        = theta0_13;
+problem_13a.lb        = lb_13;
+problem_13a.ub        = ub_13;
+problem_13a.solver    = 'lsqnonlin';
+problem_13a.options   = opts13;
+theta_13a = lsqnonlin(problem_13a);
+
+% --- Fit 13b: cylinder3D + noise, without noFlow ---
+data_13b             = data_13;
+data_13b.m_noflow    = [];
+problem_13b          = problem_13a;
+problem_13b.objective = @(th) costFun_inflow(th, data_13b);
+problem_13b.x0        = theta_13a;
+theta_13b = lsqnonlin(problem_13b);
 
 % --- Derive physical parameters ---
 [thetaDeg_a, AR_a, alphaDeg_a, pMri_eff_a] = vessel_angle_params13(theta_13a(3), theta_13a(4), pMri_ph);
 [thetaDeg_b, AR_b, alphaDeg_b, pMri_eff_b] = vessel_angle_params13(theta_13b(3), theta_13b(4), pMri_ph);
 alpha_b_rad = alphaDeg_b * pi/180;
 R_b  = theta_13b(2);
-WT_b = theta_13b(8);
+WT_b = theta_13b(9);
 
 % --- Complex domain: data trajectory ---
 finiteVencs_ph = sort(unique(dataVenc(~isinf(dataVenc))));
@@ -272,7 +301,7 @@ end
 trj_ph_n = trj_ph / abs(trj_ph(1));
 
 % --- Figure prep ---
-rGridOff_ph = sqrt((FEgrid - theta_13b(6)).^2 + (PEgrid - theta_13b(7)).^2);
+rGridOff_ph = sqrt((FEgrid - theta_13b(5)).^2 + (PEgrid - theta_13b(6)).^2);
 r_max_plt   = max(rGridOff_ph(:)) * 1.02;
 r_plt       = linspace(0, r_max_plt, 300);
 
@@ -281,26 +310,26 @@ v1D_b = @(r) velocity_func_ellipse(r, zeros(size(r)), theta_13b(1), R_b, AR_b, a
 r_lumen_plt  = r_plt(r_plt <  R_b);
 r_wall_plt   = r_plt(r_plt >= R_b & r_plt < R_b + WT_b);
 r_tissue_plt = r_plt(r_plt >= R_b + WT_b);
-m_r_lumen_b  = inflowMag13(v1D_b(r_lumen_plt), theta_13b(5), pMri_eff_b, pRelax_ph);
-m_r_wall_b   = theta_13b(10) * sqrt(pi/2) * ones(size(r_wall_plt));  % Rayleigh E[|noise|]
-m_r_tissue_b = theta_13b(9)  * ones(size(r_tissue_plt));
+m_r_lumen_b  = inflowMag13(v1D_b(r_lumen_plt), theta_13b(8), pMri_eff_b, pRelax_ph);
+m_r_wall_b   = theta_13b(11) * sqrt(pi/2) * ones(size(r_wall_plt));  % Rayleigh E[|noise|]
+m_r_tissue_b = theta_13b(10) * ones(size(r_tissue_plt));
 
 % m(v) inflow curve (blood pixels only)
 v_plt   = linspace(0, theta_13b(1)*1.1, 200);
-m_plt_b = inflowMag13(v_plt, theta_13b(5), pMri_eff_b, pRelax_ph);
+m_plt_b = inflowMag13(v_plt, theta_13b(8), pMri_eff_b, pRelax_ph);
 
 % Ellipse overlays — inner and outer wall (Fit 13b)
 t_c    = linspace(0, 2*pi, 300);
 PE_in  = R_b            .* cos(t_c);   FE_in  = (R_b/AR_b)          .* sin(t_c);
 PE_out = (R_b + WT_b)   .* cos(t_c);   FE_out = (R_b/AR_b + WT_b)   .* sin(t_c);
-cx_in  = PE_in.*cos(alpha_b_rad)  - FE_in.*sin(alpha_b_rad)  + theta_13b(7);
-cy_in  = PE_in.*sin(alpha_b_rad)  + FE_in.*cos(alpha_b_rad)  + theta_13b(6);
-cx_out = PE_out.*cos(alpha_b_rad) - FE_out.*sin(alpha_b_rad) + theta_13b(7);
-cy_out = PE_out.*sin(alpha_b_rad) + FE_out.*cos(alpha_b_rad) + theta_13b(6);
+cx_in  = PE_in.*cos(alpha_b_rad)  - FE_in.*sin(alpha_b_rad)  + theta_13b(6);
+cy_in  = PE_in.*sin(alpha_b_rad)  + FE_in.*cos(alpha_b_rad)  + theta_13b(5);
+cx_out = PE_out.*cos(alpha_b_rad) - FE_out.*sin(alpha_b_rad) + theta_13b(6);
+cy_out = PE_out.*sin(alpha_b_rad) + FE_out.*cos(alpha_b_rad) + theta_13b(5);
 
 % Three-compartment predicted magnitudes for scatter plots (all voxels, Fit 13b)
-v_pred_full = velocity_func_ellipse(rGrid, pGrid, theta_13b(1), R_b, AR_b, alpha_b_rad, theta_13b(6), theta_13b(7));
-dPE_f = PEgrid - theta_13b(7);   dFE_f = FEgrid - theta_13b(6);
+v_pred_full = velocity_func_ellipse(rGrid, pGrid, theta_13b(1), R_b, AR_b, alpha_b_rad, theta_13b(5), theta_13b(6));
+dPE_f = PEgrid - theta_13b(6);   dFE_f = FEgrid - theta_13b(5);
 r_v_f = sqrt(dPE_f.^2 + dFE_f.^2);
 uPE_f = dPE_f./max(r_v_f,eps);   uFE_f = dFE_f./max(r_v_f,eps);
 Ae_f  = uPE_f.*cos(alpha_b_rad) + uFE_f.*sin(alpha_b_rad);
@@ -309,9 +338,9 @@ Reff_in_f  = R_b ./ sqrt(max(Ae_f.^2 + AR_b^2.*Be_f.^2, eps));
 lumen_f    = v_pred_full > 0;
 wall_f     = ~lumen_f & (r_v_f < Reff_in_f + WT_b);
 Mxy_f      = zeros(size(M_ph));
-Mxy_f(lumen_f) = inflowMag13(v_pred_full(lumen_f), theta_13b(5), pMri_eff_b, pRelax_ph);
-Mxy_f(~lumen_f & ~wall_f) = theta_13b(9);
-m_pred_full    = sqrt((Mxy_f + theta_13b(10)*real(noise_grid)).^2 + (theta_13b(10)*imag(noise_grid)).^2);
+Mxy_f(lumen_f) = inflowMag13(v_pred_full(lumen_f), theta_13b(8), pMri_eff_b, pRelax_ph);
+Mxy_f(~lumen_f & ~wall_f) = theta_13b(10);
+m_pred_full    = sqrt((Mxy_f + theta_13b(11)*real(noise_grid)).^2 + (theta_13b(11)*imag(noise_grid)).^2);
 phase_pred_full = double(pi * v_pred_full / bestVenc);
 phase_meas_full = double(angle(cBest_ph));
 
@@ -334,9 +363,9 @@ fe_sg  = FEgrid(:) + dfe_sg;   % nPix × n_sub²
 pe_sg  = PEgrid(:) + dpe_sg;
 r_sg   = sqrt(fe_sg.^2 + pe_sg.^2);
 p_sg   = -atan2(fe_sg, pe_sg);
-v_sg   = velocity_func_ellipse(r_sg(:), p_sg(:), theta_13b(1), R_b, AR_b, alpha_b_rad, theta_13b(6), theta_13b(7));
+v_sg   = velocity_func_ellipse(r_sg(:), p_sg(:), theta_13b(1), R_b, AR_b, alpha_b_rad, theta_13b(5), theta_13b(6));
 v_sg   = reshape(v_sg, numel(M_ph), n_sub^2);
-dPE_sg = pe_sg - theta_13b(7);   dFE_sg = fe_sg - theta_13b(6);
+dPE_sg = pe_sg - theta_13b(6);   dFE_sg = fe_sg - theta_13b(5);
 rv_sg  = sqrt(dPE_sg.^2 + dFE_sg.^2);
 uPE_sg = dPE_sg ./ max(rv_sg, eps);   uFE_sg = dFE_sg ./ max(rv_sg, eps);
 Ae_sg  = uPE_sg.*cos(alpha_b_rad) + uFE_sg.*sin(alpha_b_rad);
@@ -362,7 +391,7 @@ tl_13 = tiledlayout(f_13, 2, 4, 'TileSpacing','compact','Padding','compact');
 nexttile(1); imagesc(PEpos, FEpos, M_ph); axis image; colormap(gca,gray); colorbar; hold on;
 plot(cx_in,  cy_in,  'r-',  'LineWidth', 1.5);
 plot(cx_out, cy_out, 'r--', 'LineWidth', 1.0);
-plot(theta_13b(7), theta_13b(6), 'r+', 'MarkerSize', 10, 'LineWidth', 1.5);
+plot(theta_13b(6), theta_13b(5), 'r+', 'MarkerSize', 10, 'LineWidth', 1.5);
 title('mag | venc=\infty | inflow fit'); set(gca,'XTick',[],'YTick',[]);
 
 % (2,1) vel map — same overlays
@@ -370,7 +399,7 @@ nexttile(5); imagesc(PEpos, FEpos, vFlow_ph, [-bestVenc bestVenc]); axis image;
 colormap(gca, blueBlackRed); colorbar; hold on;
 plot(cx_in,  cy_in,  'r-',  'LineWidth', 1.5);
 plot(cx_out, cy_out, 'r--', 'LineWidth', 1.0);
-plot(theta_13b(7), theta_13b(6), 'r+', 'MarkerSize', 10, 'LineWidth', 1.5);
+plot(theta_13b(6), theta_13b(5), 'r+', 'MarkerSize', 10, 'LineWidth', 1.5);
 title(['vel | venc=' num2str(bestVenc) ' cm/s']); set(gca,'XTick',[],'YTick',[]);
 
 % (1,2) mag radial profile — ALL voxels, three-compartment fit, no grid
@@ -472,9 +501,9 @@ end
 close(f_13);
 
 % --- fitInfo and parameter reports ---
-paramNames = {'Vmax','R','tx','ty','A','FEoffset','PEoffset','WT','S_tissue','sigma_n'};
-paramUnits = {'cm/s','mm','','','a.u.','mm','mm','mm','a.u.','a.u.'};
-paramFixed = zeros(1,10);
+paramNames = {'Vmax','R','nx','ny','cx_FE','cx_PE','cx_SLC','A','WT','S_tissue','sigma_n'};
+paramUnits = {'cm/s','mm','','','mm','mm','mm','a.u.','mm','a.u.','a.u.'};
+paramFixed = double(lb_13 == ub_13);   % cx_SLC fixed via lb==ub==0
 
 fitInfo_13a.names  = paramNames;   fitInfo_13a.units  = paramUnits;
 fitInfo_13a.fixed  = paramFixed;   fitInfo_13a.lb     = lb_13;   fitInfo_13a.ub = ub_13;
@@ -484,19 +513,20 @@ fitInfo_13a.derived.units  = {'deg','','deg'};
 fitInfo_13a.derived.theta0 = [0, 1, 0];
 fitInfo_13a.derived.theta  = [thetaDeg_a, AR_a, alphaDeg_a];
 fitInfo_13a.init_notes = { ...
-    'max|v_blood| from best-VENC image', ...
-    'ID/2 (inner lumen radius)', ...
-    '0 (perpendicular vessel)', '0 (perpendicular vessel)', ...
-    'mean(noFlow_blood)/getMxy_ss(v=0)', '0', '0', ...
-    'OD/2-ID/2 (physical tube wall)', ...
-    'mean(pixels outside OD)', ...
+    'max|v_blood| from best-VENC image', ...     % Vmax
+    'ID/2 (inner lumen radius)', ...             % R
+    '0 (perpendicular vessel)', '0 (perpendicular vessel)', ...  % nx, ny
+    '0', '0', '0', ...                           % cx_FE, cx_PE, cx_SLC
+    'mean(noFlow_blood)/getMxy_ss(v=0)', ...     % A
+    'OD/2-ID/2 (physical tube wall)', ...        % WT
+    'mean(pixels outside OD)', ...               % S_tissue
     'mean(wall pixels)*sqrt(2/pi)'};
 
 fitInfo_13b           = fitInfo_13a;
 fitInfo_13b.theta0    = theta_13a;
 fitInfo_13b.theta     = theta_13b;
 fitInfo_13b.derived.theta = [thetaDeg_b, AR_b, alphaDeg_b];
-fitInfo_13b.init_notes = repmat({'Fit 13a final'}, 1, 10);
+fitInfo_13b.init_notes = repmat({'Fit 13a final'}, 1, 11);
 
 N_ph = numel(M_ph);
 cost13.equation  = ['\mathbf{r} = \begin{bmatrix}' ...
@@ -528,105 +558,6 @@ end % section 13
 % =========================================================================
 % Local functions
 % =========================================================================
-
-function res = residuals_inflow13_full(theta, FEgrid, PEgrid, FEspacing, PEspacing, m_meas, v_meas, mask_vel, m_noflow, noise_grid, noise_noflow, pMri_base, pRelax, sv, sm)
-% theta = [Vmax, R, tx, ty, A, FEoffset, PEoffset, WT, S_tissue, sigma_n]
-% m_noflow: [] → no noFlow; full image → include noFlow magnitude residuals
-Vmax=theta(1); R_=theta(2); tx=theta(3); ty=theta(4); A=theta(5);
-FEoffset=theta(6); PEoffset=theta(7); WT=theta(8); S_tissue=theta(9); sigma_n=theta(10);
-
-cosT  = sqrt(max(0, 1 - tx^2 - ty^2));
-AR    = 1 / max(cosT, 1e-6);
-alpha = atan2(ty, tx);
-pMri_eff = pMri_base;
-pMri_eff.sliceThickness = pMri_base.sliceThickness / max(cosT, 1e-6);
-
-% Pixel-center velocity — used only for velocity residuals and lumen mask
-r_all  = sqrt(FEgrid.^2 + PEgrid.^2);
-p_all  = -atan2(FEgrid, PEgrid);
-v_pred = velocity_func_ellipse(r_all, p_all, Vmax, R_, AR, alpha, FEoffset, PEoffset);
-lumen  = v_pred > 0;
-
-% Sub-voxel spin grid (7×7): each spin gets its own staircase Mz_ss(n), averaged to voxel signal.
-% This implements the same natural smoothing as simVesselSpins — no interpolation of the staircase.
-n_sub = 7;
-[dfe_sg, dpe_sg] = ndgrid(linspace(-0.5,0.5,n_sub)*FEspacing, linspace(-0.5,0.5,n_sub)*PEspacing);
-dfe_sg = dfe_sg(:)'; dpe_sg = dpe_sg(:)'; % 1 × n_sub²
-fe_sg  = FEgrid(:) + dfe_sg;              % nPix × n_sub²
-pe_sg  = PEgrid(:) + dpe_sg;
-r_sg   = sqrt(fe_sg.^2 + pe_sg.^2);
-p_sg   = -atan2(fe_sg, pe_sg);
-v_sg   = reshape(velocity_func_ellipse(r_sg(:), p_sg(:), Vmax, R_, AR, alpha, FEoffset, PEoffset), numel(FEgrid), n_sub^2);
-% Compartment masks per sub-spin
-dPE_sg  = pe_sg - PEoffset;  dFE_sg = fe_sg - FEoffset;
-rv_sg   = sqrt(dPE_sg.^2 + dFE_sg.^2);
-uPE_sg  = dPE_sg ./ max(rv_sg, eps);  uFE_sg = dFE_sg ./ max(rv_sg, eps);
-Ae_sg   =  uPE_sg.*cos(alpha) + uFE_sg.*sin(alpha);
-Be_sg   = -uPE_sg.*sin(alpha) + uFE_sg.*cos(alpha);
-Reff_sg = R_ ./ sqrt(max(Ae_sg.^2 + AR^2.*Be_sg.^2, eps));
-lumen_sg  = v_sg > 0;
-tissue_sg = ~lumen_sg & (rv_sg >= Reff_sg + WT);
-% Per-sub-spin Mxy: lumen → inflowMag13(v), wall → 0, tissue → S_tissue
-mxy_sg = S_tissue .* tissue_sg;
-if any(lumen_sg(:))
-    mxy_sg(lumen_sg) = inflowMag13(v_sg(lumen_sg), A, pMri_eff, pRelax);
-end
-Mxy = reshape(mean(mxy_sg, 2), size(FEgrid));
-
-% Predicted magnitude with pre-realized noise (sigma_n scales the fixed realization)
-m_pred = sqrt((Mxy + sigma_n.*real(noise_grid)).^2 + (sigma_n.*imag(noise_grid)).^2);
-
-% Magnitude residuals — all voxels
-res_mag = (m_meas(:) - m_pred(:)) / sm;
-
-% Velocity residuals — blood-masked lumen pixels (pixel-center velocity)
-mask_v = mask_vel & lumen;
-if any(mask_v(:))
-    res_vel = (v_meas(mask_v) - v_pred(mask_v)) / sv;
-else
-    res_vel = [];
-end
-
-% noFlow magnitude residuals
-if ~isempty(m_noflow)
-    m_nf_lum  = inflowMag13(0, A, pMri_eff, pRelax);  % v=0: fully saturated signal
-    mxy_nf_sg = m_nf_lum .* lumen_sg + S_tissue .* tissue_sg;  % wall = 0
-    Mxy_nf    = reshape(mean(mxy_nf_sg, 2), size(FEgrid));
-    m_pred_nf = sqrt((Mxy_nf + sigma_n.*real(noise_noflow)).^2 + (sigma_n.*imag(noise_noflow)).^2);
-    res_nf    = (m_noflow(:) - m_pred_nf(:)) / sm;
-else
-    res_nf = [];
-end
-
-res = double([res_mag; res_vel; res_nf]);
-end
-
-
-% (legacy stub — superseded by residuals_inflow13_full)
-function res = residuals_inflow13(theta, r, p, v_meas, m_meas, m_noflow, pMri_base, pRelax, sv, sm)
-Vmax=theta(1); R=theta(2); tx=theta(3); ty=theta(4); A=theta(5);
-FEoffset=theta(6); PEoffset=theta(7);
-
-cosT  = sqrt(max(0, 1 - tx^2 - ty^2));
-AR    = 1 / max(cosT, 1e-6);
-alpha = atan2(ty, tx);
-
-pMri_eff = pMri_base;
-pMri_eff.sliceThickness = pMri_base.sliceThickness / max(cosT, 1e-6);
-
-v_pred = velocity_func_ellipse(r, p, Vmax, R, AR, alpha, FEoffset, PEoffset);
-m_pred = inflowMag13(v_pred, A, pMri_eff, pRelax);
-res_v  = (v_meas(:) - v_pred(:)) / sv;
-res_m  = (m_meas(:) - m_pred(:)) / sm;
-
-if ~isempty(m_noflow)
-    m_nf_pred = inflowMag13(zeros(numel(m_noflow),1), A, pMri_eff, pRelax);
-    res_mNF   = (m_noflow(:) - m_nf_pred(:)) / sm;
-else
-    res_mNF = [];
-end
-res = double([res_v; res_m; res_mNF]);
-end
 
 
 function m = inflowMag13(v, A, pMri_eff, pRelax)
