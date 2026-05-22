@@ -200,31 +200,20 @@ S3(surr3)  = S_surr;           % scalar, broadcast over surround spins
 % Sum over Z dimension → [nTotalFE, nTotalPE]
 S2 = sum(S3, 3);
 
-% --- 2D masks (projection over Z: spin belongs to lumen if ANY Z slice is in lumen) ---
-lumen2 = any(lumen3, 3);
-wall2  = any(wall3,  3) & ~lumen2;
-surr2  = ~lumen2 & ~wall2;
-assert(all(lumen2(:) + wall2(:) + surr2(:) == 1), ...
-    'simCylinder3D: 2D masks must be non-overlapping and exhaustive');
+% --- 3D masks and radial map (full isochromat resolution, no projection) ---
+assert(all(lumen3(:) + wall3(:) + surr3(:) == 1), ...
+    'simCylinder3D: 3D masks must be non-overlapping and exhaustive');
 
-% --- Assign 2D pVessel fields ---
-pVessel.mask.lumen    = lumen2;
-pVessel.mask.wall     = wall2;
-pVessel.mask.surround = surr2;
-pVessel.S.lumen       = S2(lumen2);    % Z-sum per 2D lumen spin
+pVessel.mask.lumen    = lumen3;               % [nTotalFE, nTotalPE, nSpSLC]
+pVessel.mask.wall     = wall3;
+pVessel.mask.surround = surr3;
+pVessel.r_perp        = single(r_perp);       % [nTotalFE, nTotalPE, nSpSLC] radial distance from axis [mm]
+pVessel.S.lumen       = single(S3(lumen3));   % per-isochromat inflow signal
 pVessel.S.wall        = 0;
-pVessel.S.surround    = S_surr;        % keep as scalar (magMap uses nSpinPerVox_3D below)
+pVessel.S.surround    = S_surr;
 
-% --- 2D magMap (per-spin, divided by 3D nSpinPerVox) ---
-% By using nSpinPerVox_3D in the denominator, the sum over the 2D spin grid
-% per voxel correctly recovers the 3D mean signal:
-%   sum_{2D spins} magMap = sum_{2D} S2 / (nSpFE*nSpPE*nSpSLC)
-%                         = sum_{2D} sum_Z(S3) / (nSpFE*nSpPE*nSpSLC)
-%                         = mean_{2D,Z}(S3)   (3D mean per voxel)
-magMap = zeros(size(gridFE, 1), size(gridFE, 2));   % [nTotalFE, nTotalPE]
-magMap(lumen2) = S2(lumen2)         ./ nSpinPerVox_3D;
-% wall2 contribution is 0
-magMap(surr2)  = (S_surr .* nSpSLC) ./ nSpinPerVox_3D;   % nSpSLC factor cancels in aggregation
+% --- 2D magMap: Z-sum of 3D signal, normalised by 3D spin count ---
+magMap = sum(S3, 3) ./ nSpinPerVox_3D;   % [nTotalFE, nTotalPE]
 
 % --- 2D velocity map (at Z=0, slab midplane) ---
 fe_2d = gridFE(:,:,1) - pVessel.posFE;
