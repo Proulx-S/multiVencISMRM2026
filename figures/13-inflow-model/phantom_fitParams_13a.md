@@ -7,16 +7,17 @@
 ```
 Parameter         Units       Fixed?             LB            UB       Initial         Final
 ---------------------------------------------------------------------------------------------
-Vmax              cm/s        no                  0           Inf         9.027         9.215
-R                 mm          no              1e-06          6.35         3.175         3.175
-tx                            no               -0.7           0.7             0             0
-ty                            no               -0.7           0.7             0             0
-A                 a.u.        no                  0           Inf     4.663e-06     1.115e-06
-FEoffset          mm          no            -0.8929        0.8929             0             0
-PEoffset          mm          no               -0.5           0.5             0             0
+Vmax              cm/s        no                  0           Inf         9.027         9.295
+R                 mm          no              1e-06          6.35         3.175         3.208
+nx                            no               -0.1           0.1             0             0
+ny                            no               -0.1           0.1             0             0
+cx_FE             mm          no               -0.5           0.5             0             0
+cx_PE             mm          no            -0.8929        0.8929             0             0
+cx_SLC *          mm          yes                 0             0             0             0
+A                 a.u.        no                  0           Inf     4.663e-06     1.655e-06
 WT                mm          no                  0         11.11          2.38          2.38
-S_tissue          a.u.        no                  0           Inf     5.888e-08     5.873e-08
-sigma_n           a.u.        no                  0           Inf     1.127e-08     4.811e-09
+S_tissue          a.u.        no                  0           Inf     5.888e-08     5.924e-08
+sigma_n           a.u.        no                  0           Inf     1.127e-08     4.946e-09
 ```
 
 Derived:
@@ -35,11 +36,12 @@ alpha_deg         deg                    0             0
 |---|---|
 | Vmax | max|v_blood| from best-VENC image |
 | R | ID/2 (inner lumen radius) |
-| tx | 0 (perpendicular vessel) |
-| ty | 0 (perpendicular vessel) |
+| nx | 0 (perpendicular vessel) |
+| ny | 0 (perpendicular vessel) |
+| cx_FE | 0 |
+| cx_PE | 0 |
+| cx_SLC * | 0 |
 | A | mean(noFlow_blood)/getMxy_ss(v=0) |
-| FEoffset | 0 |
-| PEoffset | 0 |
 | WT | OD/2-ID/2 (physical tube wall) |
 | S_tissue | mean(pixels outside OD) |
 | sigma_n | mean(wall pixels)*sqrt(2/pi) |

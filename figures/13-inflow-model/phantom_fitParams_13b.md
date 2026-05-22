@@ -7,16 +7,17 @@
 ```
 Parameter         Units       Fixed?             LB            UB       Initial         Final
 ---------------------------------------------------------------------------------------------
-Vmax              cm/s        no                  0           Inf         9.215         9.215
-R                 mm          no              1e-06          6.35         3.175         3.175
-tx                            no               -0.7           0.7             0             0
-ty                            no               -0.7           0.7             0             0
-A                 a.u.        no                  0           Inf     1.115e-06     1.115e-06
-FEoffset          mm          no            -0.8929        0.8929             0             0
-PEoffset          mm          no               -0.5           0.5             0             0
+Vmax              cm/s        no                  0           Inf         9.295         9.295
+R                 mm          no              1e-06          6.35         3.208         3.208
+nx                            no               -0.1           0.1             0             0
+ny                            no               -0.1           0.1             0             0
+cx_FE             mm          no               -0.5           0.5             0             0
+cx_PE             mm          no            -0.8929        0.8929             0             0
+cx_SLC *          mm          yes                 0             0             0             0
+A                 a.u.        no                  0           Inf     1.655e-06     1.655e-06
 WT                mm          no                  0         11.11          2.38          2.38
-S_tissue          a.u.        no                  0           Inf     5.873e-08     5.873e-08
-sigma_n           a.u.        no                  0           Inf     4.811e-09     4.811e-09
+S_tissue          a.u.        no                  0           Inf     5.924e-08     5.924e-08
+sigma_n           a.u.        no                  0           Inf     4.946e-09     4.946e-09
 ```
 
 Derived:
@@ -35,11 +36,12 @@ alpha_deg         deg                    0             0
 |---|---|
 | Vmax | Fit 13a final |
 | R | Fit 13a final |
-| tx | Fit 13a final |
-| ty | Fit 13a final |
+| nx | Fit 13a final |
+| ny | Fit 13a final |
+| cx_FE | Fit 13a final |
+| cx_PE | Fit 13a final |
+| cx_SLC * | Fit 13a final |
 | A | Fit 13a final |
-| FEoffset | Fit 13a final |
-| PEoffset | Fit 13a final |
 | WT | Fit 13a final |
 | S_tissue | Fit 13a final |
 | sigma_n | Fit 13a final |
