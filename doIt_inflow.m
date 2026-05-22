@@ -240,13 +240,13 @@ theta0_13 = min(max(theta0_13, lb_13), ub_13);
 opts13 = optimoptions('lsqnonlin','Display','iter','MaxFunctionEvaluations',3e4,'FunctionTolerance',1e-9);
 
 % --- Fit 13a: three-compartment + noise, with noFlow ---
-f_res_a = @(th) residuals_inflow13_full(th, FEgrid, PEgrid, ...
+f_res_a = @(th) residuals_inflow13_full(th, FEgrid, PEgrid, FEspacing, PEspacing, ...
     double(M_ph), double(vFlow_ph), maskBlood_ph, double(abs(cNoFlow_ph)), ...
     noise_grid, noise_noflow, pMri_ph, pRelax_ph, sv, sm);
 theta_13a = lsqnonlin(f_res_a, theta0_13, lb_13, ub_13, opts13);
 
 % --- Fit 13b: three-compartment + noise, without noFlow ---
-f_res_b = @(th) residuals_inflow13_full(th, FEgrid, PEgrid, ...
+f_res_b = @(th) residuals_inflow13_full(th, FEgrid, PEgrid, FEspacing, PEspacing, ...
     double(M_ph), double(vFlow_ph), maskBlood_ph, [], ...
     noise_grid, noise_noflow, pMri_ph, pRelax_ph, sv, sm);
 theta_13b = lsqnonlin(f_res_b, theta_13a, lb_13, ub_13, opts13);
@@ -529,7 +529,7 @@ end % section 13
 % Local functions
 % =========================================================================
 
-function res = residuals_inflow13_full(theta, FEgrid, PEgrid, m_meas, v_meas, mask_vel, m_noflow, noise_grid, noise_noflow, pMri_base, pRelax, sv, sm)
+function res = residuals_inflow13_full(theta, FEgrid, PEgrid, FEspacing, PEspacing, m_meas, v_meas, mask_vel, m_noflow, noise_grid, noise_noflow, pMri_base, pRelax, sv, sm)
 % theta = [Vmax, R, tx, ty, A, FEoffset, PEoffset, WT, S_tissue, sigma_n]
 % m_noflow: [] → no noFlow; full image → include noFlow magnitude residuals
 Vmax=theta(1); R_=theta(2); tx=theta(3); ty=theta(4); A=theta(5);
@@ -541,26 +541,37 @@ alpha = atan2(ty, tx);
 pMri_eff = pMri_base;
 pMri_eff.sliceThickness = pMri_base.sliceThickness / max(cosT, 1e-6);
 
-% Velocity for all pixels
-r_all = sqrt(FEgrid.^2 + PEgrid.^2);
-p_all = -atan2(FEgrid, PEgrid);
+% Pixel-center velocity — used only for velocity residuals and lumen mask
+r_all  = sqrt(FEgrid.^2 + PEgrid.^2);
+p_all  = -atan2(FEgrid, PEgrid);
 v_pred = velocity_func_ellipse(r_all, p_all, Vmax, R_, AR, alpha, FEoffset, PEoffset);
+lumen  = v_pred > 0;
 
-% Compartment assignment
-dPE = PEgrid - PEoffset;   dFE = FEgrid - FEoffset;
-r_v = sqrt(dPE.^2 + dFE.^2);
-uPE = dPE./max(r_v,eps);   uFE = dFE./max(r_v,eps);
-Ae  = uPE.*cos(alpha) + uFE.*sin(alpha);
-Be  = -uPE.*sin(alpha) + uFE.*cos(alpha);
-R_eff_in = R_ ./ sqrt(max(Ae.^2 + AR.^2.*Be.^2, eps));
-lumen = v_pred > 0;
-wall  = ~lumen & (r_v < R_eff_in + WT);
-
-% Predicted Mxy
-Mxy = zeros(size(FEgrid));
-Mxy(lumen) = inflowMag13(v_pred(lumen), A, pMri_eff, pRelax);
-% wall: Mxy = 0
-Mxy(~lumen & ~wall) = S_tissue;   % tissue
+% Sub-voxel spin grid (7×7): each spin gets its own staircase Mz_ss(n), averaged to voxel signal.
+% This implements the same natural smoothing as simVesselSpins — no interpolation of the staircase.
+n_sub = 7;
+[dfe_sg, dpe_sg] = ndgrid(linspace(-0.5,0.5,n_sub)*FEspacing, linspace(-0.5,0.5,n_sub)*PEspacing);
+dfe_sg = dfe_sg(:)'; dpe_sg = dpe_sg(:)'; % 1 × n_sub²
+fe_sg  = FEgrid(:) + dfe_sg;              % nPix × n_sub²
+pe_sg  = PEgrid(:) + dpe_sg;
+r_sg   = sqrt(fe_sg.^2 + pe_sg.^2);
+p_sg   = -atan2(fe_sg, pe_sg);
+v_sg   = reshape(velocity_func_ellipse(r_sg(:), p_sg(:), Vmax, R_, AR, alpha, FEoffset, PEoffset), numel(FEgrid), n_sub^2);
+% Compartment masks per sub-spin
+dPE_sg  = pe_sg - PEoffset;  dFE_sg = fe_sg - FEoffset;
+rv_sg   = sqrt(dPE_sg.^2 + dFE_sg.^2);
+uPE_sg  = dPE_sg ./ max(rv_sg, eps);  uFE_sg = dFE_sg ./ max(rv_sg, eps);
+Ae_sg   =  uPE_sg.*cos(alpha) + uFE_sg.*sin(alpha);
+Be_sg   = -uPE_sg.*sin(alpha) + uFE_sg.*cos(alpha);
+Reff_sg = R_ ./ sqrt(max(Ae_sg.^2 + AR^2.*Be_sg.^2, eps));
+lumen_sg  = v_sg > 0;
+tissue_sg = ~lumen_sg & (rv_sg >= Reff_sg + WT);
+% Per-sub-spin Mxy: lumen → inflowMag13(v), wall → 0, tissue → S_tissue
+mxy_sg = S_tissue .* tissue_sg;
+if any(lumen_sg(:))
+    mxy_sg(lumen_sg) = inflowMag13(v_sg(lumen_sg), A, pMri_eff, pRelax);
+end
+Mxy = reshape(mean(mxy_sg, 2), size(FEgrid));
 
 % Predicted magnitude with pre-realized noise (sigma_n scales the fixed realization)
 m_pred = sqrt((Mxy + sigma_n.*real(noise_grid)).^2 + (sigma_n.*imag(noise_grid)).^2);
@@ -568,7 +579,7 @@ m_pred = sqrt((Mxy + sigma_n.*real(noise_grid)).^2 + (sigma_n.*imag(noise_grid))
 % Magnitude residuals — all voxels
 res_mag = (m_meas(:) - m_pred(:)) / sm;
 
-% Velocity residuals — blood-masked lumen pixels
+% Velocity residuals — blood-masked lumen pixels (pixel-center velocity)
 mask_v = mask_vel & lumen;
 if any(mask_v(:))
     res_vel = (v_meas(mask_v) - v_pred(mask_v)) / sv;
@@ -578,11 +589,9 @@ end
 
 % noFlow magnitude residuals
 if ~isempty(m_noflow)
-    Mz_0      = getMz_ss(pMri_eff, pRelax, 0);
-    m_nf_lum  = A * double(getMxy_ss(Mz_0, pMri_eff, pRelax));
-    Mxy_nf    = zeros(size(FEgrid));
-    Mxy_nf(lumen) = m_nf_lum;
-    Mxy_nf(~lumen & ~wall) = S_tissue;
+    m_nf_lum  = inflowMag13(0, A, pMri_eff, pRelax);  % v=0: fully saturated signal
+    mxy_nf_sg = m_nf_lum .* lumen_sg + S_tissue .* tissue_sg;  % wall = 0
+    Mxy_nf    = reshape(mean(mxy_nf_sg, 2), size(FEgrid));
     m_pred_nf = sqrt((Mxy_nf + sigma_n.*real(noise_noflow)).^2 + (sigma_n.*imag(noise_noflow)).^2);
     res_nf    = (m_noflow(:) - m_pred_nf(:)) / sm;
 else

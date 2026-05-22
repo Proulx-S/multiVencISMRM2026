@@ -99,7 +99,7 @@ Three regimes:
 
 where $E_1 = e^{-TR/T_1}$, $Q_1 = E_1\cos\alpha_{\text{FA}}$, $M_{z0} = M_0(1-E_1)/(1-Q_1)$ is the stationary steady state, and $n = \lceil v_c / v \rceil$.
 
-The partial-inflow formula interpolates between $M_{z0}$ (fully saturated) and $M_0$ (fully refreshed). At $v \to 0^+$: $n \to \infty$, the factor $(1-Q_1^n)/(n(1-Q_1)) \to 0$, so $M_z^{\text{ss}} \to M_{z0}$. At $v$ just below $v_c$: $n = 2$, the formula gives a value close to but not equal to $M_0$; there is a small discontinuity at $v_c$ because regime 3 jumps directly to $M_0$. This is a known approximation in the implementation.
+The partial-inflow formula is a **staircase** in velocity: within each interval $v \in (v_c/(n+1),\, v_c/n]$, the integer $n = \lceil v_c/v \rceil$ is constant and $M_z^{\text{ss}}$ takes a constant value. Steps occur at $v = v_c/n$ for $n = 2, 3, \ldots$ This is the correct per-isochromat physics — the staircase should not be smoothed at this level. At $v \to 0^+$: $n \to \infty$, the factor $(1-Q_1^n)/(n(1-Q_1)) \to 0$, so $M_z^{\text{ss}} \to M_{z0}$. At $v$ just below $v_c$: $n = 2$, giving a value below $M_0$; regime 3 then jumps directly to $M_0$, leaving a small discontinuity at $v_c$. The apparent smoothing seen in voxel data arises from the distribution of spin velocities within each voxel — this is handled in the fitting by the 7×7 sub-voxel spin grid, not by smoothing the staircase itself.
 
 **Implementation note:** the effective pMri struct with scaled `sliceThickness` is passed to `getMz_ss`, so $d_{\text{eff}}$ is automatically used inside the function without any special handling.
 
@@ -125,23 +125,28 @@ end
 
 ### Three-compartment signal model
 
-Each image pixel $i$ belongs to one of three compartments, determined by its position relative to the fitted ellipse:
+The predicted voxel signal is computed by averaging over a 7×7 sub-voxel spin grid. Each sub-spin is assigned to a compartment based on its own position, and its Mxy is computed from the per-spin (staircase) inflow model. Averaging across the 49 sub-spins gives the predicted voxel signal — the same natural smoothing that `simVesselSpins` implements, without interpolating the staircase.
 
-| Compartment | Condition | $\hat{M}_{xy,i}$ |
+| Compartment (per sub-spin) | Condition | $\hat{M}_{xy}$ |
 |---|---|---|
-| Lumen | $v_i^{\text{pred}} > 0$ | $A \cdot M_{xy}^{\text{ss}}(v_i^{\text{pred}})$ |
-| Wall | $v_i^{\text{pred}} = 0$ and $r_{v,i} < R_{\text{eff},i} + WT$ | $0$ (fixed) |
+| Lumen | $v_{\text{spin}} > 0$ | $A \cdot M_{xy}^{\text{ss}}(v_{\text{spin}})$ — staircase |
+| Wall | $v_{\text{spin}} = 0$ and $r_{v,\text{spin}} < R_{\text{eff},\text{spin}} + WT$ | $0$ (fixed) |
 | Tissue | everything else | $S_t$ (free scalar) |
 
 ```matlab
-lumen = v_pred > 0;
-wall  = ~lumen & (r_v < R_eff_in + WT);
-Mxy(lumen)           = inflowMag13(v_pred(lumen), A, pMri_eff, pRelax);
-% Mxy(wall) = 0   implicitly (zeros initialisation)
-Mxy(~lumen & ~wall)  = S_tissue;
+% 7×7 sub-voxel spin grid
+[dfe_sg, dpe_sg] = ndgrid(linspace(-0.5,0.5,7)*FEspacing, linspace(-0.5,0.5,7)*PEspacing);
+v_sg     = velocity_func_ellipse(...);          % velocity per sub-spin
+lumen_sg = v_sg > 0;
+tissue_sg = ~lumen_sg & (rv_sg >= Reff_sg + WT);
+mxy_sg(lumen_sg)  = inflowMag13(v_sg(lumen_sg), A, pMri_eff, pRelax);
+mxy_sg(tissue_sg) = S_tissue;
+Mxy = reshape(mean(mxy_sg, 2), size(FEgrid));   % voxel-averaged
 ```
 
-The outer wall boundary is defined as a constant radial offset $WT$ from the inner ellipse $R_{\text{eff},i}$, not as a concentric ellipse. For a circular lumen ($AR = 1$) this is simply a circle of radius $R + WT$.
+Pixel-center velocities (`v_pred`, `lumen`) are still computed for the velocity residuals only — they are not used for the magnitude prediction.
+
+The outer wall boundary per sub-spin uses a constant radial offset $WT$ from the inner ellipse $R_{\text{eff},\text{spin}}$, consistent with the original fit definition.
 
 **Caveat — figure overlay vs. fit definition:** the outer wall ellipse drawn on the maps uses semi-axes $(R + WT,\; R/AR + WT)$, which is a concentric ellipse. This does **not** match the radial offset used in the fit residuals. For the phantom ($AR \approx 1$) both are nearly identical circles, but for in-vivo data with $AR > 1$ the displayed outer ellipse will not match the fitted wall boundary.
 
@@ -438,7 +443,7 @@ set(hMkr_,{'MarkerEdgeColor'}, origMEC_);
 
 2. **Velocity residual count in fit report:** `dsum_13b` counts `sum(maskBlood_ph)` velocity residuals but the actual count is `sum(maskBlood_ph & lumen_final)`, which can be smaller if the optimizer shrinks the lumen. Minor effect.
 
-3. **Discontinuity in `getMz_ss` at $v = v_c$:** regime 2 with $v \to v_c^-$ gives $n=2$, which does not exactly equal regime 3 ($M_0$). The discrepancy is small but produces a kink in $m(v)$ at $v = v_c$.
+3. **Discontinuity in `getMz_ss` at $v = v_c$:** regime 2 with $v \to v_c^-$ gives $n=2$, which does not exactly equal regime 3 ($M_0$). The discrepancy is small but produces a step at $v_c$ in the per-isochromat staircase. This is physically correct — spins crossing the slab in exactly one TR have $n=1$ but that case only occurs at $v \ge v_c$. The sub-voxel averaging in the fitting further softens this edge.
 
 4. **Phase scatter (panel H) background phase:** `angle(cBest_ph)` contains any residual background phase not removed by the reference scan. For the phantom this is negligible, but for in vivo data with B0 inhomogeneity this offset would shift the measured phase cluster relative to the prediction.
 
