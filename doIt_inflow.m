@@ -30,8 +30,9 @@ else
 
     mountPoint = '/Users/sebastienproulx/remote/takoyakiLocal';
     [status, ~] = system(['mount | grep ' mountPoint]);
-    if status ~= 0
-      system(['sshfs takoyaki:/local/users/Proulx-S ' mountPoint ' -o follow_symlinks,reconnect,allow_other']);
+    [internetFlag,~] = system('ping -c 1 www.google.com');
+    if status ~= 0 && internetFlag == 0    
+        system(['sshfs takoyaki:/local/users/Proulx-S ' mountPoint ' -o follow_symlinks,reconnect,allow_other']);
     end
 
     storageDrive   = '/Users/sebastienproulx/bass';
@@ -76,7 +77,7 @@ info.toClean = {};
 
 
 
-forceThis = 1;
+forceThis = 0;
 %%%%%%%%%%%%%%%%%%%%
 %% Load phantom data
 %%%%%%%%%%%%%%%%%%%%
@@ -124,6 +125,7 @@ clear dFE dPE d_far d_near M com total
 %  Activate a section by changing `if 0` → `if 1`.]
 
 
+if 0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Load in vivo data -- sub-01 and sub-02
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -153,6 +155,7 @@ for s = 1:2
     inVivoSubData{s} = load(subFile, 'img', 'imgInfo', 'refImgAv');
 end
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end % in vivo loading
 
 
 % return
@@ -173,136 +176,214 @@ end % section 12
 
 
 if 1
-saveThis = 1;
+saveThis = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 13 - inflow model (phantom)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sec13fig = fullfile(info.project.figures, '13-inflow-model');
 if ~exist(sec13fig,'dir'); mkdir(sec13fig); end
 
+
+
+p = runSim;
+
+
+
 % --- MRI parameters (phantom 03: BEAT-FQ sequence, 3T) ---
-p_ph_def = runSim;
-pMri_ph  = p_ph_def.pMri;
-pMri_ph.fieldStrength  = 3;
-pMri_ph.species        = 'phantom';
-pMri_ph.sliceThickness = 2.2;          % mm
-pMri_ph.TR             = 75.90/(5+1)/1000;  % s  (75.90 ms / 6 echoes)
-pMri_ph.TE             = 9.8/1000;     % s
-pMri_ph.FA             = 50;           % deg
-pMri_ph.venc.method    = 'FVEmono';
-pMri_ph.venc.FVEbw     = 100;          % cm/s
-p_ph = runSim(p_ph_def.pVessel, p_ph_def.pSim, pMri_ph);
-pMri_ph   = p_ph.pMri;
-pRelax_ph = pMri_ph.relax.blood;
+pMri  = p.pMri;
+pMri.fieldStrength  = 3;
+pMri.species        = 'phantom';
+pMri.sliceThickness = 2.2;          % mm
+pMri.TR             = 75.90/(5+1)/1000;  % s  (75.90 ms / 6 echoes)
+pMri.TE             = 9.8/1000;     % s
+pMri.FA             = 50;           % deg
+pMri.venc.method    = 'velEnc';
+pMri.venc.vencList = sort(unique(dataVenc)); % cm/s
+% pMri.venc.vencList(pMri.venc.vencList==inf) = [];
 
-% --- Extract phantom data ---
-cFlow_ph   = squeeze(mean(data(:,:,dataVenc==inf),    3));
-cBest_ph   = squeeze(mean(data(:,:,dataVenc==bestVenc),3));
-cNoFlow_ph = squeeze(mean(dataNoFlow(:,:,dataVenc==inf),3));
-M_ph       = abs(cFlow_ph);
-vFlow_ph   = phase2vel(angle(cBest_ph), vencToM1(bestVenc));
+% --- simulation parameters ---
+pSim = p.pSim;
+pSim.voxGrid.matFE  = size(data,1);
+pSim.voxGrid.matPE  = size(data,2);
+pSim.voxGrid.matSLC = 1;
+pSim.voxGrid.fovFE  = size(data,1).*FEspacing;
+pSim.voxGrid.fovPE  = size(data,1).*PEspacing;
+pSim.voxGrid.fovSLC = pMri.sliceThickness;
+pSim.gridMode = 'allVox';
 
-maskBlood_ph = M_ph > 0.30 * max(M_ph(:));
-r_blood = rGrid(maskBlood_ph);   p_blood = pGrid(maskBlood_ph);
-m_blood = double(M_ph(maskBlood_ph));    v_blood = double(vFlow_ph(maskBlood_ph));
-m_noflow_blood = double(abs(cNoFlow_ph(maskBlood_ph)));
-R_ph = ID/2;   % inner lumen radius [mm]
+% --- vessel model ---
+pVessel = p.pVessel;
+pVessel.geometry = 'infiniteCylinder';
 
-% --- Physics reference at v=0 (fully saturated) ---
-Mz_v0  = getMz_ss(pMri_ph, pRelax_ph, 0);
-Mxy_v0 = double(getMxy_ss(Mz_v0, pMri_ph, pRelax_ph));
-A_init = mean(m_noflow_blood) / Mxy_v0;
 
-% --- Pre-realize complex noise (fixed before optimization; same realization every iteration) ---
+
+p = runSim(pVessel, pSim, pMri);
+pVessel = p.pVessel;
+pSim    = p.pSim;
+pMri    = p.pMri; clear p
+
+
+% --- realize isochromat noise ---
 rng(0);
-noise_grid   = randn(size(M_ph)) + 1i * randn(size(M_ph));   % for flow data
-noise_noflow = randn(size(M_ph)) + 1i * randn(size(M_ph));   % for noFlow (independent)
+sz = [pSim.spinGrid.matFE pSim.spinGrid.matPE pSim.spinGrid.matSLC];
+pSim.spinGrid.gridNoise(:,:,:,:,1) = randn(size(sz)) + 1i * randn(size(sz));   % for flow data
+pSim.spinGrid.gridNoise(:,:,:,:,2) = randn(size(sz)) + 1i * randn(size(sz));   % for noFlow (independent)
 
-% --- Initial estimates for new parameters ---
-WT_init          = double(OD/2 - ID/2);                          % physical tube wall [mm]
-mask_wall_init   = rGrid > R_ph & rGrid <= OD/2;
-mask_tissue_init = rGrid >  OD/2;
-sigma_n_init  = double(mean(M_ph(mask_wall_init))) * sqrt(2/pi); % Rayleigh E → Gaussian sigma
-S_tissue_init = double(mean(M_ph(mask_tissue_init)));
-if isnan(S_tissue_init) || isempty(S_tissue_init)
-    S_tissue_init = double(mean(M_ph(:))) * 0.3;
+
+
+% --- set starting param in sim structure---
+pVessel.ID = ID;
+pVessel.WT = OD/2-ID/2;
+
+dataVel = phase2vel(angle(mean(data(:,:,dataVenc==bestVenc),3)),vencToM1(bestVenc));
+[~,b] = max(abs(dataVel(:)));
+pVessel.vMean = dataVel(b)/2;
+
+dataMag = abs(mean(data(:,:,dataVenc==inf),3));
+Mz   = getMz_ss(pMri, pMri.relax.blood, dataVel(b));
+Mxy  = double(getMxy_ss(Mz, pMri, pMri.relax.blood));
+pSim.mriScale = dataMag(b) / Mxy;
+
+
+[gridFE, gridPE] = ndgrid(pSim.voxGrid.coorFE, pSim.voxGrid.coorPE);
+gridR = sqrt(gridFE.^2 + gridPE.^2);
+pVessel.S.surround = mean(dataMag(gridR>(pVessel.ID/2+pVessel.WT+max(pSim.voxGrid.dFE,pSim.voxGrid.dPE))));
+
+pSim.spinGrid.gridNoiseScale = 0;
+% sigma_n_init  = double(mean(M(mask_wall_init))) * sqrt(2/pi); % Rayleigh E → Gaussian sigma
+
+
+% --- prepare data for cost function ---
+dataVencList = unique(dataVenc);
+dataFit = nan([size(data,[1 2]) 1 1 length(dataVencList)]);
+for i = 1:length(dataVencList)
+    dataFit(:,:,:,:,i) = permute(mean(data(:,:,dataVenc==dataVencList(i)),3),[1 2 4 5 3]);
 end
 
+
 % --- Fit bounds and initial values ---
-% theta = [Vmax, R, nx, ny, cx_FE, cx_PE, cx_SLC, A, WT, S_tissue, sigma_n]
-sv        = std(v_blood);
-sm        = double(std(M_ph(:)));
-Vmax_init = max(abs(v_blood));
-nx_lim    = 0.1;   % ±0.1 tilt → combined ≤ ~8° for phantom
-lb_13 = double([0,    1e-6, -nx_lim,-nx_lim, -FEspacing,-PEspacing, 0, 0, 0,  0,  0  ]);
-ub_13 = double([inf,  ID,    nx_lim, nx_lim,  FEspacing, PEspacing,  0, inf,OD, inf, inf]);
-theta0_13 = double([Vmax_init, R_ph, 0, 0, 0, 0, 0, A_init, WT_init, S_tissue_init, sigma_n_init]);
-theta0_13 = min(max(theta0_13, lb_13), ub_13);
-opts13 = optimoptions('lsqnonlin','Display','iter','MaxFunctionEvaluations',3e4,'FunctionTolerance',1e-9);
+maxTilt_deg = 8;
+n_hat_lim = sind(maxTilt_deg);
 
-% --- Set up pSim_base for costFun_inflow ---
-pSim_base = p_ph_def.pSim;
-pSim_base.voxGrid.fovFE  = numel(FEpos) * FEspacing;
-pSim_base.voxGrid.fovPE  = numel(PEpos) * PEspacing;
-pSim_base.voxGrid.matFE  = numel(FEpos);
-pSim_base.voxGrid.matPE  = numel(PEpos);
-pSim_base.nSpin          = 49;   % 7×7 sub-voxel grid (matches original n_sub=7)
-pSim_base.monteCarloN    = 0;
+% theta =       [Vmax           , R             , nx              , ny              , cx_FE         , cx_PE        , cx_SLC         , A            , WT        , S_tissue          , sigma_n                      ]
+theta0 = double([pVessel.vMean*2, pVessel.ID/2  , pVessel.n_hat(1), pVessel.n_hat(2), pVessel.pos(1),pVessel.pos(2), pVessel.pos(3) , pSim.mriScale, pVessel.WT, pVessel.S.surround, pSim.spinGrid.gridNoiseScale]);
+lb     = double([0              , pVessel.ID/2/2, -n_hat_lim      ,-n_hat_lim       , -FEspacing    ,-PEspacing    , 0              , 0            , 0         , 0                 ,  0                          ]);
+ub     = double([inf            , pVessel.ID/2*2,  n_hat_lim      , n_hat_lim       ,  FEspacing    , PEspacing    , 0              , inf          , OD/2      , inf               , inf                         ]);
+theta0 = min(max(theta0, lb), ub);
+opts = optimoptions('lsqnonlin','Display','iter','MaxFunctionEvaluations',3e4,'FunctionTolerance',1e-9);
 
-% --- Build data struct ---
-data_13.pSim_base    = pSim_base;
-data_13.pMri_base    = pMri_ph;
-data_13.m_meas       = double(M_ph);
-data_13.v_meas       = double(vFlow_ph);
-data_13.mask_vel     = maskBlood_ph;
-data_13.m_noflow     = double(abs(cNoFlow_ph));
-data_13.noise_grid   = noise_grid;
-data_13.noise_noflow = noise_noflow;
-data_13.FEgrid       = FEgrid;
-data_13.PEgrid       = PEgrid;
-data_13.sv           = sv;
-data_13.sm           = sm;
 
-% --- Fit 13a: cylinder3D + noise, with noFlow ---
-problem_13a.objective = @(th) costFun_inflow(th, data_13);
-problem_13a.x0        = theta0_13;
-problem_13a.lb        = lb_13;
-problem_13a.ub        = ub_13;
-problem_13a.solver    = 'lsqnonlin';
-problem_13a.options   = opts13;
-theta_13a = lsqnonlin(problem_13a);
 
-% --- Fit 13b: cylinder3D + noise, without noFlow ---
-data_13b             = data_13;
-data_13b.m_noflow    = [];
-problem_13b          = problem_13a;
-problem_13b.objective = @(th) costFun_inflow(th, data_13b);
-problem_13b.x0        = theta_13a;
-theta_13b = lsqnonlin(problem_13b);
+problem.objective = @(th) costFun_inflow(th, pVessel, pSim, pMri, dataFit);
+problem.x0        = theta0;
+problem.lb        = lb;
+problem.ub        = ub;
+problem.solver    = 'lsqnonlin';
+problem.options   = opts;
+theta = lsqnonlin(problem);
+
+
+
+[residual,sim] = costFun_inflow(theta, pVessel, pSim, pMri, dataFit);
+
+
+
+imagesc(angle(sim.I(:,:,:,:,dataVencList==bestVenc)),[-pi pi]);
+imagesc(abs(sim.I(:,:,:,:,dataVencList==bestVenc)));
+
+
+
+
+
+
+
+% % --- Fit 13b: cylinder3D + noise, without noFlow ---
+% data_13b             = data_13;
+% data_13b.m_noflow    = [];
+% problem_13b          = problem_13a;
+% problem_13b.objective = @(th) costFun_inflow(th, data_13b);
+% problem_13b.x0        = theta_13a;
+% theta_13b = lsqnonlin(problem_13b);
+
+
+
+
+% % sv        = std(v_blood);
+% % sm        = double(std(M(:)));
+% % Vmax_init = max(abs(v_blood));
+% % nx_lim    = 0.1;   % ±0.1 tilt → combined ≤ ~8° for phantom
+% % lb_13 = double([0,    1e-6, -nx_lim,-nx_lim, -FEspacing,-PEspacing, 0, 0, 0,  0,  0  ]);
+% % ub_13 = double([inf,  ID,    nx_lim, nx_lim,  FEspacing, PEspacing,  0, inf,OD, inf, inf]);
+% % theta0_13 = double([Vmax_init, R, 0, 0, 0, 0, 0, A_init, WT_init, S_tissue_init, sigma_n_init]);
+% % theta0_13 = min(max(theta0_13, lb_13), ub_13);
+% % opts13 = optimoptions('lsqnonlin','Display','iter','MaxFunctionEvaluations',3e4,'FunctionTolerance',1e-9);
+
+% % --- Set up pSim_base for costFun_inflow ---
+% pSim_base = p_def.pSim;
+% pSim_base.voxGrid.fovFE  = numel(FEpos) * FEspacing;
+% pSim_base.voxGrid.fovPE  = numel(PEpos) * PEspacing;
+% pSim_base.voxGrid.matFE  = numel(FEpos);
+% pSim_base.voxGrid.matPE  = numel(PEpos);
+% pSim_base.nSpin          = 49;   % 7×7 sub-voxel grid (matches original n_sub=7)   |||| Note to Claude: we will want this to reflect the total number of isochromats in a voxel, so including the third slice dimension|||||
+% pSim_base.monteCarloN    = 0;
+
+% % --- Build data struct ---
+% data_13.pSim_base    = pSim_base;
+% data_13.pMri_base    = pMri;
+% data_13.m_meas       = double(M);
+% data_13.v_meas       = double(vFlow);
+% data_13.mask_vel     = maskBlood;
+% data_13.m_noflow     = double(abs(cNoFlow));
+% data_13.noise_grid   = noise_grid;
+% data_13.noise_noflow = noise_noflow;
+% data_13.FEgrid       = FEgrid;
+% data_13.PEgrid       = PEgrid;
+% data_13.sv           = sv;
+% data_13.sm           = sm;
+
+% % --- Fit 13a: cylinder3D + noise, with noFlow ---
+% problem_13a.objective = @(th) costFun_inflow(th, data_13);
+% problem_13a.x0        = theta0_13;
+% problem_13a.lb        = lb_13;
+% problem_13a.ub        = ub_13;
+% problem_13a.solver    = 'lsqnonlin';
+% problem_13a.options   = opts13;
+% theta_13a = lsqnonlin(problem_13a);
+
+% % --- Fit 13b: cylinder3D + noise, without noFlow ---
+% data_13b             = data_13;
+% data_13b.m_noflow    = [];
+% problem_13b          = problem_13a;
+% problem_13b.objective = @(th) costFun_inflow(th, data_13b);
+% problem_13b.x0        = theta_13a;
+% theta_13b = lsqnonlin(problem_13b);
+
+
+
 
 % --- Derive physical parameters ---
-[thetaDeg_a, AR_a, alphaDeg_a, pMri_eff_a] = vessel_angle_params13(theta_13a(3), theta_13a(4), pMri_ph);
-[thetaDeg_b, AR_b, alphaDeg_b, pMri_eff_b] = vessel_angle_params13(theta_13b(3), theta_13b(4), pMri_ph);
+[thetaDeg_a, AR_a, alphaDeg_a, pMri_eff_a] = vessel_angle_params13(theta_13a(3), theta_13a(4), pMri);
+[thetaDeg_b, AR_b, alphaDeg_b, pMri_eff_b] = vessel_angle_params13(theta_13b(3), theta_13b(4), pMri);
 alpha_b_rad = alphaDeg_b * pi/180;
 R_b  = theta_13b(2);
 WT_b = theta_13b(9);
 
 % --- Complex domain: data trajectory ---
-finiteVencs_ph = sort(unique(dataVenc(~isinf(dataVenc))));
-m1_meas_ph = arrayfun(@vencToM1, finiteVencs_ph);
+finiteVencs = sort(unique(dataVenc(~isinf(dataVenc))));
+m1_meas = arrayfun(@vencToM1, finiteVencs);
 
-all_vencs_ph = [inf; finiteVencs_ph(:)];
-trj_ph = zeros(numel(all_vencs_ph), 1);
-trj_ph(1) = mean(cFlow_ph(maskBlood_ph));
-for kk = 1:numel(finiteVencs_ph)
-    cVenc_kk = squeeze(mean(data(:,:,dataVenc==finiteVencs_ph(kk)), 3));
-    trj_ph(1+kk) = mean(cVenc_kk(maskBlood_ph));
+all_vencs = [inf; finiteVencs(:)];
+trj = zeros(numel(all_vencs), 1);
+trj(1) = mean(cFlow(maskBlood));
+for kk = 1:numel(finiteVencs)
+    cVenc_kk = squeeze(mean(data(:,:,dataVenc==finiteVencs(kk)), 3));
+    trj(1+kk) = mean(cVenc_kk(maskBlood));
 end
-trj_ph_n = trj_ph / abs(trj_ph(1));
+trj_n = trj / abs(trj(1));
 
 % --- Figure prep ---
-rGridOff_ph = sqrt((FEgrid - theta_13b(5)).^2 + (PEgrid - theta_13b(6)).^2);
-r_max_plt   = max(rGridOff_ph(:)) * 1.02;
+rGridOff = sqrt((FEgrid - theta_13b(5)).^2 + (PEgrid - theta_13b(6)).^2);
+r_max_plt   = max(rGridOff(:)) * 1.02;
 r_plt       = linspace(0, r_max_plt, 300);
 
 % 1D radial profile segments — three compartments (Fit 13b, along p=0)
@@ -310,13 +391,13 @@ v1D_b = @(r) velocity_func_ellipse(r, zeros(size(r)), theta_13b(1), R_b, AR_b, a
 r_lumen_plt  = r_plt(r_plt <  R_b);
 r_wall_plt   = r_plt(r_plt >= R_b & r_plt < R_b + WT_b);
 r_tissue_plt = r_plt(r_plt >= R_b + WT_b);
-m_r_lumen_b  = inflowMag13(v1D_b(r_lumen_plt), theta_13b(8), pMri_eff_b, pRelax_ph);
+m_r_lumen_b  = inflowMag13(v1D_b(r_lumen_plt), theta_13b(8), pMri_eff_b, pRelax);
 m_r_wall_b   = theta_13b(11) * sqrt(pi/2) * ones(size(r_wall_plt));  % Rayleigh E[|noise|]
 m_r_tissue_b = theta_13b(10) * ones(size(r_tissue_plt));
 
 % m(v) inflow curve (blood pixels only)
 v_plt   = linspace(0, theta_13b(1)*1.1, 200);
-m_plt_b = inflowMag13(v_plt, theta_13b(8), pMri_eff_b, pRelax_ph);
+m_plt_b = inflowMag13(v_plt, theta_13b(8), pMri_eff_b, pRelax);
 
 % Ellipse overlays — inner and outer wall (Fit 13b)
 t_c    = linspace(0, 2*pi, 300);
@@ -337,23 +418,23 @@ Be_f  = -uPE_f.*sin(alpha_b_rad) + uFE_f.*cos(alpha_b_rad);
 Reff_in_f  = R_b ./ sqrt(max(Ae_f.^2 + AR_b^2.*Be_f.^2, eps));
 lumen_f    = v_pred_full > 0;
 wall_f     = ~lumen_f & (r_v_f < Reff_in_f + WT_b);
-Mxy_f      = zeros(size(M_ph));
-Mxy_f(lumen_f) = inflowMag13(v_pred_full(lumen_f), theta_13b(8), pMri_eff_b, pRelax_ph);
+Mxy_f      = zeros(size(M));
+Mxy_f(lumen_f) = inflowMag13(v_pred_full(lumen_f), theta_13b(8), pMri_eff_b, pRelax);
 Mxy_f(~lumen_f & ~wall_f) = theta_13b(10);
 m_pred_full    = sqrt((Mxy_f + theta_13b(11)*real(noise_grid)).^2 + (theta_13b(11)*imag(noise_grid)).^2);
 phase_pred_full = double(pi * v_pred_full / bestVenc);
-phase_meas_full = double(angle(cBest_ph));
+phase_meas_full = double(angle(cBest));
 
 % Analytical complex trajectory from Fit 13b — blood pixels only, phase-aligned to data
 % phase = gamma_Hz * M1[T·s²/m] * v[m/s]
 gamma_hz  = 2.6752218708e8 / (2*pi);
-v_b_ms    = double(v_pred_full(maskBlood_ph)) / 100;   % cm/s → m/s
-Mxy_b_cd  = double(Mxy_f(maskBlood_ph));
-m1_traj   = linspace(0, vencToM1(min(finiteVencs_ph)), 600)';   % M1=0 → max M1
+v_b_ms    = double(v_pred_full(maskBlood)) / 100;   % cm/s → m/s
+Mxy_b_cd  = double(Mxy_f(maskBlood));
+m1_traj   = linspace(0, vencToM1(min(finiteVencs)), 600)';   % M1=0 → max M1
 phases_cd = gamma_hz .* m1_traj .* v_b_ms(:)';            % 600 × N_blood
 I_pred_cd = mean(Mxy_b_cd(:)' .* exp(1j .* phases_cd), 2);% 600 × 1
 I_pred_cd_n = I_pred_cd / abs(I_pred_cd(1));
-I_pred_cd_n = I_pred_cd_n * exp(1j * angle(trj_ph_n(1))); % align to data background phase
+I_pred_cd_n = I_pred_cd_n * exp(1j * angle(trj_n(1))); % align to data background phase
 
 % --- Sub-grid partial-volume fractions per voxel (7×7 sub-points) ---
 n_sub = 7;
@@ -364,19 +445,19 @@ pe_sg  = PEgrid(:) + dpe_sg;
 r_sg   = sqrt(fe_sg.^2 + pe_sg.^2);
 p_sg   = -atan2(fe_sg, pe_sg);
 v_sg   = velocity_func_ellipse(r_sg(:), p_sg(:), theta_13b(1), R_b, AR_b, alpha_b_rad, theta_13b(5), theta_13b(6));
-v_sg   = reshape(v_sg, numel(M_ph), n_sub^2);
+v_sg   = reshape(v_sg, numel(M), n_sub^2);
 dPE_sg = pe_sg - theta_13b(6);   dFE_sg = fe_sg - theta_13b(5);
 rv_sg  = sqrt(dPE_sg.^2 + dFE_sg.^2);
 uPE_sg = dPE_sg ./ max(rv_sg, eps);   uFE_sg = dFE_sg ./ max(rv_sg, eps);
 Ae_sg  = uPE_sg.*cos(alpha_b_rad) + uFE_sg.*sin(alpha_b_rad);
 Be_sg  = -uPE_sg.*sin(alpha_b_rad) + uFE_sg.*cos(alpha_b_rad);
-Reff_sg = reshape(R_b ./ sqrt(max(Ae_sg.^2 + AR_b^2.*Be_sg.^2, eps)), numel(M_ph), n_sub^2);
-rv_sg   = reshape(rv_sg, numel(M_ph), n_sub^2);
+Reff_sg = reshape(R_b ./ sqrt(max(Ae_sg.^2 + AR_b^2.*Be_sg.^2, eps)), numel(M), n_sub^2);
+rv_sg   = reshape(rv_sg, numel(M), n_sub^2);
 f_lum = mean(v_sg > 0, 2);
 f_wal = mean(v_sg == 0 & rv_sg < Reff_sg + WT_b, 2);
 f_tis = max(0, 1 - f_lum - f_wal);
 [~, comp_dom] = max([f_lum, f_wal, f_tis], [], 2);
-comp_map = reshape(comp_dom, size(M_ph));   % 1=lumen  2=wall  3=tissue
+comp_map = reshape(comp_dom, size(M));   % 1=lumen  2=wall  3=tissue
 
 clr_l = [0.15 0.85 1.00];   % cyan-blue  → lumen / blood
 clr_w = [1.00 0.45 0.05];   % orange     → wall
@@ -388,14 +469,14 @@ f_13 = figure('MenuBar','none','ToolBar','none','Units','centimeters','Position'
 tl_13 = tiledlayout(f_13, 2, 4, 'TileSpacing','compact','Padding','compact');
 
 % (1,1) mag map — inner wall (solid), outer wall (dashed), center +
-nexttile(1); imagesc(PEpos, FEpos, M_ph); axis image; colormap(gca,gray); colorbar; hold on;
+nexttile(1); imagesc(PEpos, FEpos, M); axis image; colormap(gca,gray); colorbar; hold on;
 plot(cx_in,  cy_in,  'r-',  'LineWidth', 1.5);
 plot(cx_out, cy_out, 'r--', 'LineWidth', 1.0);
 plot(theta_13b(6), theta_13b(5), 'r+', 'MarkerSize', 10, 'LineWidth', 1.5);
 title('mag | venc=\infty | inflow fit'); set(gca,'XTick',[],'YTick',[]);
 
 % (2,1) vel map — same overlays
-nexttile(5); imagesc(PEpos, FEpos, vFlow_ph, [-bestVenc bestVenc]); axis image;
+nexttile(5); imagesc(PEpos, FEpos, vFlow, [-bestVenc bestVenc]); axis image;
 colormap(gca, blueBlackRed); colorbar; hold on;
 plot(cx_in,  cy_in,  'r-',  'LineWidth', 1.5);
 plot(cx_out, cy_out, 'r--', 'LineWidth', 1.0);
@@ -404,7 +485,7 @@ title(['vel | venc=' num2str(bestVenc) ' cm/s']); set(gca,'XTick',[],'YTick',[])
 
 % (1,2) mag radial profile — ALL voxels, three-compartment fit, no grid
 nexttile(2);
-cm = comp_map(:);  rx = rGridOff_ph(:);  my = double(M_ph(:));
+cm = comp_map(:);  rx = rGridOff(:);  my = double(M(:));
 h2l = plot(rx(cm==1), my(cm==1), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_l, 'MarkerEdgeColor',mec, 'LineWidth',mlw); hold on;
 h2w = plot(rx(cm==2), my(cm==2), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_w, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
 h2t = plot(rx(cm==3), my(cm==3), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_t, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
@@ -419,7 +500,7 @@ title('mag radial profile'); set(gca,'Color','k'); axis square;
 
 % (2,2) vel radial profile — ALL voxels, no grid
 nexttile(6);
-vy = double(vFlow_ph(:));
+vy = double(vFlow(:));
 h6l = plot(rx(cm==1), vy(cm==1), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_l, 'MarkerEdgeColor',mec, 'LineWidth',mlw); hold on;
 h6w = plot(rx(cm==2), vy(cm==2), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_w, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
 h6t = plot(rx(cm==3), vy(cm==3), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_t, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
@@ -434,9 +515,9 @@ title('vel radial profile'); set(gca,'Color','k'); axis square;
 
 % (1,3) pred vs meas magnitude — same x/y range and ticks
 nexttile(3);
-xy_lim_m = [0, max(max(double(M_ph(:))), max(m_pred_full(:))) * 1.02];
+xy_lim_m = [0, max(max(double(M(:))), max(m_pred_full(:))) * 1.02];
 plot(xy_lim_m, xy_lim_m, '--', 'Color', [.35 .35 .35], 'LineWidth', 0.8); hold on;
-mx = double(M_ph(:));  my3 = m_pred_full(:);
+mx = double(M(:));  my3 = m_pred_full(:);
 plot(mx(cm==1), my3(cm==1), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_l, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
 plot(mx(cm==2), my3(cm==2), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_w, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
 plot(mx(cm==3), my3(cm==3), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_t, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
@@ -446,7 +527,7 @@ title('pred vs meas mag (all vox)'); set(gca,'Color','k'); axis square;
 
 % (2,3) complex domain — sim line only (no extra markers), behind data
 ax_cd = nexttile(7);
-plotComplexDomain(ax_cd, trj_ph_n, all_vencs_ph, 'full', 'markers');
+plotComplexDomain(ax_cd, trj_n, all_vencs, 'full', 'markers');
 set(findobj(ax_cd,'Type','line','Marker','o'), ...
     'MarkerSize',mks+2, 'MarkerFaceColor',mfc, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
 hold(ax_cd,'on');
@@ -457,7 +538,7 @@ title(ax_cd, 'complex domain');
 
 % (1,4) inflow model m(v) — blood pixels, no grid
 nexttile(4);
-cm_b = comp_map(maskBlood_ph);
+cm_b = comp_map(maskBlood);
 h4l = plot(v_blood(cm_b==1), m_blood(cm_b==1), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_l, 'MarkerEdgeColor',mec, 'LineWidth',mlw); hold on;
 h4w = plot(v_blood(cm_b==2), m_blood(cm_b==2), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_w, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
 h4t = plot(v_blood(cm_b==3), m_blood(cm_b==3), 'o', 'LineStyle','none', 'MarkerSize',mks, 'MarkerFaceColor',clr_t, 'MarkerEdgeColor',mec, 'LineWidth',mlw);
@@ -528,7 +609,7 @@ fitInfo_13b.theta     = theta_13b;
 fitInfo_13b.derived.theta = [thetaDeg_b, AR_b, alphaDeg_b];
 fitInfo_13b.init_notes = repmat({'Fit 13a final'}, 1, 11);
 
-N_ph = numel(M_ph);
+N = numel(M);
 cost13.equation  = ['\mathbf{r} = \begin{bmatrix}' ...
     '(m_i^{\mathrm{meas}} - |\hat{M}_{xy,i} + \sigma_n \eta_i|)/\sigma_m \\' ...
     '(v_i^{\mathrm{meas}} - v_i^{\mathrm{pred}})/\sigma_v\end{bmatrix}'];
@@ -542,9 +623,9 @@ cost13.magModel  = ['$$m_{\mathrm{phys}}(v) = |\hat{M}_{xy}(v) + \sigma_n \eta|$
     'Wall: $\hat{M}_{xy}=0$ (fixed). Tissue: $\hat{M}_{xy}=S_t$.'];
 
 dsum_13a = sprintf('%d px (all) + %d vel + %d noFlow. Total: %d.', ...
-    N_ph, sum(maskBlood_ph(:)), N_ph, 2*N_ph + sum(maskBlood_ph(:)));
+    N, sum(maskBlood(:)), N, 2*N + sum(maskBlood(:)));
 dsum_13b = sprintf('%d px (all) + %d vel. Total: %d.', ...
-    N_ph, sum(maskBlood_ph(:)), N_ph + sum(maskBlood_ph(:)));
+    N, sum(maskBlood(:)), N + sum(maskBlood(:)));
 
 writeFitParamsMd(fullfile(sec13fig,'phantom_fitParams_13a.md'), ...
     '13a — Inflow 3-compartment (phantom, with noFlow)', fitInfo_13a, cost13, dsum_13a);
