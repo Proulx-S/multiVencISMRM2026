@@ -1,2 +1,9 @@
 .DS_Store
 tmp/*.mat
+
+# throwaway scratch (see bass genesis.md "Scratch files"): ignored, folder kept via .gitkeep
+scratch/*
+!scratch/.gitkeep
+
+# background-job worktrees (never commit as a gitlink)
+.claude/worktrees/
