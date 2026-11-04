@@ -54,7 +54,7 @@ if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' toolURL ' ' full
 
 %%% matlab others
 % blueBlackRed (in util) auto-downloads Colorspace-Transformations on first call
-tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-inflow';
+tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-inflow-errata'; % util#15 erratum (getMz_ss column average) on top of dev-inflow
 gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
 tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-inflow';
 gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
