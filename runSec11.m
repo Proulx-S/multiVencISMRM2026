@@ -32,6 +32,7 @@ tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; b
 if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' repoURL ' ' fullfile(toolDir, tool)]); end
 addpath(genpath(fullfile(toolDir,'util')));
 gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
+if ~strcmp(devDir, toolDir); rmpath(genpath(fullfile(toolDir,'util'))); end % drop the default-branch util bootstrap: only devTools/util stays (on Mac devDir==toolDir: nothing to drop)
 tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-multiVencISMRM2026';
 gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 

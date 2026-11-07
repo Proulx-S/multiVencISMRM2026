@@ -60,12 +60,13 @@ if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' toolURL ' ' full
 % blueBlackRed (in util) auto-downloads Colorspace-Transformations on first call
 tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-inflow';
 gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
+if ~strcmp(devDir, toolDir); rmpath(genpath(fullfile(toolDir,'util'))); end % drop the default-branch util bootstrap: only devTools/util stays (on Mac devDir==toolDir: nothing to drop)
 tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-inflow';
 gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 tool = 'multiVencSim'; repoURL = 'https://github.com/Proulx-S/multiVencSim.git'; subTool = ''; branch = 'dev-inflow';
 gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 % pcMRAsim must be re-added last: multiVencSim carries its own old runSim.m which shadows pcMRAsim's
-addpath(genpathClean(fullfile(devDir, 'pcMRAsim')));
+addpath(genpath(fullfile(devDir, 'pcMRAsim')));
 %% %%%%%%%%%%%%%%%%%%
 disp(projectCode)
 disp(projectStorage)
