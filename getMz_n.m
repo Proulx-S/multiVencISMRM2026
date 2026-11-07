@@ -9,6 +9,20 @@ function [Mz_n, pMri, Mo] = getMz_n(pMri, pRelax, n, Mo, nWidth)
 % Unlike getMz_ss (util), which averages over a whole slice column of plug flow, getMz_n is for
 % isochromats at known positions in the slab (simVesselSpins).
 %
+% NOTE (2026-11-06) -- version implemented here: EXACT.
+%   Integer n: Q1^n for a spin with exactly n earlier pulses (non-integer n is an error). With nWidth:
+%   the cell average of Q1^floor(x), piecewise linear in v; summed over the slab it is the exact column
+%   average f = [(1-Q1^K)/(1-Q1) + (U-K)*Q1^K]/U, K = floor(U). (The dev-inflow branch's continuous-count
+%   version, Q1^n with fractional n, runs ~12% low; the staircase and continuous-u versions are wrong
+%   between integer u.)
+%   Refs: Gullberg, Simons & Wehrli 1988, Magn Reson Imaging 6(4):437-461,
+%   doi:10.1016/0730-725X(88)90481-X (fractional-volume method); Gao, Holland & Gore 1988,
+%   Med Phys 15(6):809-814, doi:10.1118/1.596197 (that method for spoiled FLASH);
+%   Bianciardi et al. 2016, Phil Trans R Soc A 374:20150184, doi:10.1098/rsta.2015.0184.
+%   Note: https://github.com/Proulx-S/microscopyValidation/blob/9057997d65a96cad63419fed24daa1ba885ed6c6/docs/inflowBetweenIntegerPulseCounts.md (private repo)
+%   Path: no other getMz_n.m exists in util, pcMRAsim (dev-inflow), multiVencSim or vfMRItools,
+%   so this copy is the one the doIt's path finds (nothing shadows it).
+%
 % INPUTS
 %   pMri   - MRI acquisition struct. Required fields: TR, FA.
 %   pRelax - Relaxation struct with field T1 [s]. Used to set (override) pMri.E1 and pMri.Q1.
