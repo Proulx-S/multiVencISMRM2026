@@ -7,3 +7,4 @@ scratch/*
 
 # background-job worktrees (never commit as a gitlink)
 .claude/worktrees/
+devTools/
