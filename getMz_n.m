@@ -6,6 +6,20 @@ function [Mz_n, pMri, Mo] = getMz_n(pMri, pRelax, n, Mo)
 % has since received exactly n pulses. This is the correct model for isochromats
 % at known Z positions within the slab (used by the 'cylinder3D' profile).
 %
+% NOTE (2026-11-06) -- version implemented here: CONTINUOUS COUNT.
+%   Per isochromat Q1^n with a continuous (non-integer) n = d/(v*TR) passed in by simVesselSpins.
+%   A spin only receives whole pulses, so a fractional n credits it with pulses it has not
+%   received (Q1^x < Q1^floor(x)); the resulting inflow curve is ~12% low between integer n.
+%   The exact version averages Q1^floor(x) over the isochromat's cell (piecewise linear in v;
+%   column average f = [(1-Q1^K)/(1-Q1) + (U-K)*Q1^K]/U, K = floor(U)).
+%   Refs: Gullberg, Simons & Wehrli 1988, Magn Reson Imaging 6(4):437-461,
+%   doi:10.1016/0730-725X(88)90481-X (fractional-volume method); Gao, Holland & Gore 1988,
+%   Med Phys 15(6):809-814, doi:10.1118/1.596197 (that method for spoiled FLASH);
+%   Bianciardi et al. 2016, Phil Trans R Soc A 374:20150184, doi:10.1098/rsta.2015.0184.
+%   Note: https://github.com/Proulx-S/microscopyValidation/blob/9057997d65a96cad63419fed24daa1ba885ed6c6/docs/inflowBetweenIntegerPulseCounts.md (private repo)
+%   Path: no other getMz_n.m exists in util, pcMRAsim (dev-inflow), multiVencSim or vfMRItools,
+%   so this copy is the one the doIt's path finds (nothing shadows it).
+%
 % INPUTS
 %   pMri   - MRI acquisition struct. Required fields: TR, FA.
 %   pRelax - Relaxation struct with field T1 [s]. Used to set (override) pMri.E1 and pMri.Q1.
