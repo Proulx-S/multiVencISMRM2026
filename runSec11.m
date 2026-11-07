@@ -14,6 +14,7 @@ if strcmp(os,'Linux') && strcmp(host,'takoyaki') && strcmp(user,'sebp')
     projectStorage = fullfile(storageDrive, 'projects', projectName);
     projectScratch = fullfile(scratchDrive, 'projects', projectName, 'tmp');
     toolDir        = fullfile(scratchDrive, 'tools');
+    devDir         = fullfile(projectCode, 'devTools'); % canonical project checkout path (absolute, so a git worktree does not change it)
 else
     mountPoint = '/Users/sebastienproulx/remote/takoyakiLocal';
     storageDrive   = '/Users/sebastienproulx/bass';
@@ -24,12 +25,15 @@ else
     toolDir        = fullfile(scratchDrive, 'tools');
 end
 
+% Proulx-S tool branches other than the default are cloned into the project's own devTools/ (never into the shared
+% /scratch/bass/tools clones, rule shared-tools.md); Mac keeps cloning next to the other tools as before
+if ~exist('devDir','var'); devDir = toolDir; end
 tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-multiVencISMRM2026';
 if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' repoURL ' ' fullfile(toolDir, tool)]); end
 addpath(genpath(fullfile(toolDir,'util')));
-gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-multiVencISMRM2026';
-gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 
 info.project.code    = projectCode;
 info.project.storage = projectStorage;
