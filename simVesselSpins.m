@@ -1,4 +1,19 @@
 function [mMap,vMap,pVessel,pSim,pMri] = simVesselSpins(pVessel, pSim, pMri)
+% NOTE (2026-11-06) -- inflow version implemented here: EXACT.
+%   A spin at depth d has received floor(d/(v*TR)) pulses; getMz_n (nWidth) averages Q1^floor(x) over
+%   each isochromat's cell, so summed over the slab it gives the exact column average, piecewise linear
+%   in v: f = [(1-Q1^K)/(1-Q1) + (U-K)*Q1^K]/U, K = floor(U), U = vCrit/v. (This differs from the
+%   continuous-count version on the dev-inflow branch, ~12% low, and from the staircase and
+%   continuous-u versions, which are wrong between integer u.)
+%   Refs: Gullberg, Simons & Wehrli 1988, Magn Reson Imaging 6(4):437-461,
+%   doi:10.1016/0730-725X(88)90481-X (fractional-volume method); Gao, Holland & Gore 1988,
+%   Med Phys 15(6):809-814, doi:10.1118/1.596197 (that method for spoiled FLASH);
+%   Bianciardi et al. 2016, Phil Trans R Soc A 374:20150184, doi:10.1098/rsta.2015.0184.
+%   Note: https://github.com/Proulx-S/microscopyValidation/blob/9057997d65a96cad63419fed24daa1ba885ed6c6/docs/inflowBetweenIntegerPulseCounts.md (private repo)
+%   Path: pcMRAsim (branch dev-inflow, cloned by the doIt) has its own, older simVesselSpins.m (2D,
+%   posFE/posPE interface). The doIt re-adds pcMRAsim to the path last and never adds this folder, so
+%   THIS copy runs only when MATLAB's current folder is the project root (current folder beats the
+%   path); otherwise pcMRAsim's copy shadows it.
 
 
 % --- isochromat coordinate grids ---
