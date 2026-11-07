@@ -25,6 +25,7 @@ if strcmp(os,'Linux') && strcmp(host,'takoyaki') && strcmp(user,'sebp')
     projectDataBase        = fullfile(databaseDrive                       ); if ~exist(projectDataBase       ,'dir'); mkdir(projectDataBase       ); end
     projectDataBasePhantom = fullfile(databasePhantomDrive                ); if ~exist(projectDataBasePhantom,'dir'); mkdir(projectDataBasePhantom); end
     toolDir        = fullfile(scratchDrive, 'tools'                       ); if ~exist(toolDir               ,'dir'); mkdir(toolDir               ); end
+    devDir         = fullfile(projectCode, 'devTools'); % canonical project checkout path (absolute, so a git worktree does not change it)
 else
     envId = 2;
 
@@ -47,6 +48,9 @@ else
     toolDir         = fullfile(scratchDrive, 'tools'                       ); if ~exist(toolDir        ,'dir'); mkdir(toolDir        ); end
 end
 
+% Proulx-S tool branches other than the default are cloned into the project's own devTools/ (never into the shared
+% /scratch/bass/tools clones, rule shared-tools.md); Mac keeps cloning next to the other tools as before
+if ~exist('devDir','var'); devDir = toolDir; end
 % Load dependencies and set paths
 %%% initial cloning of matlab util to get gitClone.m
 tool = 'util'; toolURL = 'https://github.com/Proulx-S/util.git';
@@ -55,13 +59,14 @@ if ~exist(fullfile(toolDir, tool), 'dir'); system(['git clone ' toolURL ' ' full
 %%% matlab others
 % blueBlackRed (in util) auto-downloads Colorspace-Transformations on first call
 tool = 'util'; repoURL = 'https://github.com/Proulx-S/util.git'; subTool = ''; branch = 'dev-inflow-errata'; % util#15 erratum (getMz_ss column average) on top of dev-inflow
-gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
+if ~strcmp(devDir, toolDir); rmpath(genpath(fullfile(toolDir,'util'))); end % drop the default-branch util bootstrap: only devTools/util stays (on Mac devDir==toolDir: nothing to drop)
 tool = 'pcMRAsim'; repoURL = 'https://github.com/Proulx-S/pcMRAsim.git'; subTool = ''; branch = 'dev-inflow';
-gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 tool = 'multiVencSim'; repoURL = 'https://github.com/Proulx-S/multiVencSim.git'; subTool = ''; branch = 'dev-inflow';
-gitClone(repoURL, fullfile(toolDir, tool), subTool, branch);
+gitClone(repoURL, fullfile(devDir, tool), subTool, branch);
 % pcMRAsim must be re-added last: multiVencSim carries its own old runSim.m which shadows pcMRAsim's
-addpath(genpath(fullfile(toolDir, 'pcMRAsim')));
+addpath(genpath(fullfile(devDir, 'pcMRAsim')));
 %% %%%%%%%%%%%%%%%%%%
 disp(projectCode)
 disp(projectStorage)
